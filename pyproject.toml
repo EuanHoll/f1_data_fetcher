@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "f1-data-fetcher"
+version = "0.1.0"
+description = ""
+authors = ["EuanHoll"]
+readme = "README.md"
+packages = [{include = "f1_data_fetcher"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.0.3"
+fastf1 = "^3.0.6"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
