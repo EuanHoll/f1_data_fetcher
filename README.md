@@ -6,6 +6,10 @@ F1 Data Fetcher is a Python application that allows users to fetch and save data
 
 The fetched data includes information about a specific F1 session from a particular race and year. The user can specify the year, race number, and session type (Practice 1, Practice 2, Practice 3, Qualifying, or Race) through the GUI. The fetched data is then saved as a CSV file in the location specified by the user.
 
+## Preview Image
+
+![Screenshot 2023-07-09 162259](https://github.com/EuanHoll/f1_data_fetcher/assets/13416922/7a1ec7fe-5355-46ba-8f71-1e8584de3940)
+
 ## Requirements
 
 The script requires the following Python libraries:
