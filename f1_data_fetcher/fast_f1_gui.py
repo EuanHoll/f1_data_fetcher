@@ -4,6 +4,8 @@ from fastf1 import get_session
 from datetime import datetime
 import pandas as pd
 import os
+import threading
+import time
 
 current_file_path = os.path.realpath(__file__)
 
@@ -22,9 +24,6 @@ def cli():
             messagebox.showerror("Error", "Please fill out all fields.")
             return
 
-        # Disable the button and change its text while the data is being fetched
-        get_data_button.config(state="disabled", text="Loading...")
-
         year = int(year)
         race_number = int(race_number)
         session = session_dict[session]
@@ -35,32 +34,42 @@ def cli():
             messagebox.showerror("Error", f"Cannot fetch data for future year. Current year is {current_year}.")
             return
 
-        # Get the session data
+        # Disable the button and start the loading animation
+        get_data_button.config(state="disabled")
+        loading_label.config(text="Loading.")
+        window.after(500, update_loading_label)
+
+        threading.Thread(target=fetch_and_save_data, args=(year, race_number, session), daemon=True).start()
+
+    def fetch_and_save_data(year, race_number, session):
         try:
             session_data = get_session(year, race_number, session)
             session_data.load()
         except Exception as e:
             messagebox.showerror("Error", str(e))
-            return
-        finally:
-            # Re-enable the button and change its text back
-            get_data_button.config(state="normal", text="Get F1 Data")
+        else:
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".csv", 
+                filetypes=[('CSV Files', '*.csv')], 
+                initialfile=f"{session}_{race_number}_{year}.csv"
+            )
+            if filename:
+                session_data.laps.to_csv(filename)
 
-        # Save the session data to CSV
-        filename = filedialog.asksaveasfilename(
-            defaultextension=".csv", 
-            filetypes=[('CSV Files', '*.csv')], 
-            initialfile=f"{session}_{race_number}_{year}.csv"
-        )
-        if filename:
-            session_data.laps.to_csv(filename)
+        # Re-enable the button and stop the loading animation
+        get_data_button.config(state="normal")
+        loading_label.config(text="")
+
+    def update_loading_label():
+        if get_data_button["state"] == "disabled":
+            loading_label.config(text=loading_label.cget("text") + ".")
+            window.after(500, update_loading_label)
 
     # Create the main window
     window = tk.Tk()
     window.title("F1 Data Fetcher")
     window.geometry("400x300")
     window.resizable(True, True)
-    window.iconbitmap(os.path.join(current_file_path, "..", "logo.ico"))
 
     # Add some style
     style = ttk.Style(window)
@@ -102,6 +111,10 @@ def cli():
     # Create a button that calls get_f1_data when clicked
     get_data_button = ttk.Button(frame, text="Get F1 Data", command=get_f1_data)
     get_data_button.grid(row=4, column=0, columnspan=2, pady=10)
+
+    # Create a label for the loading animation
+    loading_label = ttk.Label(frame, text="", padding="5")
+    loading_label.grid(row=5, column=0, columnspan=2)
 
     # Configure the grid to expand properly when the window is resized
     frame.columnconfigure(1, weight=1)
