@@ -36,6 +36,8 @@ poetry shell
 
 ## Usage
 
+First, download the exe from the [Latest Release](https://github.com/EuanHoll/f1_data_fetcher/releases/latest).
+
 To use the application, run the Python script. This will open a GUI where you can input:
 
 - **Year**: The year of the race (must be a past year).
