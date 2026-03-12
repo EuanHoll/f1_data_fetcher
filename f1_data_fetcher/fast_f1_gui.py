@@ -1,16 +1,17 @@
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-from fastf1 import get_session
-from datetime import datetime
-import pandas as pd
 import os
 import threading
-import time
+import tkinter as tk
+from datetime import datetime
+from tkinter import filedialog, messagebox, ttk
+
+from fastf1 import get_session
 
 current_file_path = os.path.realpath(__file__)
 
+
 def is_number(s):
     return s.isdigit()
+
 
 def cli():
 
@@ -31,7 +32,10 @@ def cli():
         # Check if year is in the future
         current_year = datetime.now().year
         if year > current_year:
-            messagebox.showerror("Error", f"Cannot fetch data for future year. Current year is {current_year}.")
+            messagebox.showerror(
+                "Error",
+                f"Cannot fetch data for future year. Current year is {current_year}.",
+            )
             return
 
         # Disable the button and start the loading animation
@@ -39,7 +43,9 @@ def cli():
         loading_label.config(text="Loading.")
         window.after(500, update_loading_label)
 
-        threading.Thread(target=fetch_and_save_data, args=(year, race_number, session), daemon=True).start()
+        threading.Thread(
+            target=fetch_and_save_data, args=(year, race_number, session), daemon=True
+        ).start()
 
     def fetch_and_save_data(year, race_number, session):
         try:
@@ -49,9 +55,9 @@ def cli():
             messagebox.showerror("Error", str(e))
         else:
             filename = filedialog.asksaveasfilename(
-                defaultextension=".csv", 
-                filetypes=[('CSV Files', '*.csv')], 
-                initialfile=f"{session}_{race_number}_{year}.csv"
+                defaultextension=".csv",
+                filetypes=[("CSV Files", "*.csv")],
+                initialfile=f"{session}_{race_number}_{year}.csv",
             )
             if filename:
                 session_data.laps.to_csv(filename)
@@ -75,12 +81,18 @@ def cli():
     style = ttk.Style(window)
     style.configure("TFrame", background="#333")
     style.configure("TLabel", background="#333", foreground="#fff", font=("Arial", 14))
-    style.configure("TButton", background="#0288d1", foreground="#000", font=("Arial", 12, 'bold'))
-    style.configure("TEntry", fieldbackground="#666", foreground="#000", font=("Arial", 12))
-    style.configure("TCombobox", fieldbackground="#666", foreground="#000", font=("Arial", 12))
+    style.configure(
+        "TButton", background="#0288d1", foreground="#000", font=("Arial", 12, "bold")
+    )
+    style.configure(
+        "TEntry", fieldbackground="#666", foreground="#000", font=("Arial", 12)
+    )
+    style.configure(
+        "TCombobox", fieldbackground="#666", foreground="#000", font=("Arial", 12)
+    )
 
     validate = window.register(is_number)
-    
+
     # Create a frame for the entry fields
     frame = ttk.Frame(window, padding="20")
     frame.pack(fill="both", expand=True)
@@ -90,22 +102,32 @@ def cli():
     title.grid(row=0, column=0, columnspan=2)
 
     # Create a dictionary for session types
-    session_dict = {"Practice 1": "FP1", "Practice 2": "FP2", "Practice 3": "FP3", "Qualifying": "Q", "Race": "R"}
+    session_dict = {
+        "Practice 1": "FP1",
+        "Practice 2": "FP2",
+        "Practice 3": "FP3",
+        "Qualifying": "Q",
+        "Race": "R",
+    }
 
     # Create entry fields for year, race number, and session
     year_label = ttk.Label(frame, text="Year:", padding="5")
     year_label.grid(row=1, column=0, sticky="w")
-    year_entry = ttk.Entry(frame, validate="key", validatecommand=(validate, '%P'))
+    year_entry = ttk.Entry(frame, validate="key", validatecommand=(validate, "%P"))
     year_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
 
     race_number_label = ttk.Label(frame, text="Race Number:", padding="5")
     race_number_label.grid(row=2, column=0, sticky="w")
-    race_number_entry = ttk.Entry(frame, validate="key", validatecommand=(validate, '%P'))
+    race_number_entry = ttk.Entry(
+        frame, validate="key", validatecommand=(validate, "%P")
+    )
     race_number_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
 
     session_label = ttk.Label(frame, text="Session:", padding="5")
     session_label.grid(row=3, column=0, sticky="w")
-    session_combo = ttk.Combobox(frame, values=list(session_dict.keys()), state="readonly")
+    session_combo = ttk.Combobox(
+        frame, values=list(session_dict.keys()), state="readonly"
+    )
     session_combo.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
 
     # Create a button that calls get_f1_data when clicked
@@ -122,6 +144,7 @@ def cli():
 
     # Run the main loop
     window.mainloop()
+
 
 if __name__ == "__main__":
     cli()

@@ -42,16 +42,23 @@ The script requires the following Python libraries:
 - `pandas`
 - `os`
 
-You can install these using Poetry:
+You can install these using uv:
 
 ```shell
-poetry install
+uv sync
 ```
 
-Then, access the shell with the following command:
+Then, run the app with:
 
 ```shell
-poetry shell
+uv run python -m f1_data_fetcher
+```
+
+For linting and formatting checks, run:
+
+```shell
+uv run ruff check .
+uv run ruff format .
 ```
 
 ### Usage
