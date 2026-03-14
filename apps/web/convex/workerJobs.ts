@@ -197,7 +197,7 @@ export const reconcileMissingActiveJobs = mutation({
     message: v.optional(v.string())
   },
   handler: async (ctx, args) => {
-    const jobs = await ctx.db.query("workerJobs").order("desc").take(100);
+    const jobs = await ctx.db.query("workerJobs").collect();
     const activeSet = new Set(args.activeJobIds);
     const now = Date.now();
     let updated = 0;

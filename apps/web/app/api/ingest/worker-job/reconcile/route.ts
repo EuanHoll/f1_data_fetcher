@@ -38,12 +38,18 @@ export async function POST(request: Request) {
       : [];
 
     const client = getConvexAdminClient();
-    const result = await client.mutation(api.workerJobs.reconcileMissingActiveJobs, {
-      activeJobIds,
-      message: body.message ? String(body.message) : undefined
-    });
+    const [jobResult, sessionResult] = await Promise.all([
+      client.mutation(api.workerJobs.reconcileMissingActiveJobs, {
+        activeJobIds,
+        message: body.message ? String(body.message) : undefined
+      }),
+      client.mutation(api.sessions.reconcileMissingActiveJobs, {
+        activeJobIds,
+        message: body.message ? String(body.message) : undefined
+      })
+    ]);
 
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({ ok: true, workerJobsUpdated: jobResult.updated, sessionsUpdated: sessionResult.updated });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown worker job reconciliation error";
     return NextResponse.json({ error: message }, { status: 500 });

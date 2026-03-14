@@ -7,6 +7,7 @@ from app.config import (
     get_ingest_api_key,
     get_ingest_base_url,
 )
+from app.queue import get_queue
 from app.services.http_client import create_http_session, post_json
 
 
@@ -19,6 +20,22 @@ def run_once(http_session, base_url: str, api_key: str, live_limit: int, histori
     )
 
 
+def reconcile_queue_state(http_session, base_url: str, api_key: str):
+    from rq.registry import StartedJobRegistry
+
+    queue = get_queue()
+    active_job_ids = list(queue.job_ids) + StartedJobRegistry(queue=queue).get_job_ids()
+    return post_json(
+        http_session,
+        f"{base_url.rstrip('/')}/api/ingest/worker-job/reconcile",
+        api_key,
+        {
+            "activeJobIds": sorted(set(active_job_ids)),
+            "message": "Worker job no longer exists in the queue",
+        },
+    )
+
+
 def run_with_retry(http_session, base_url: str, api_key: str, live_limit: int, historical_limit: int, retries: int = 5):
     last_error = None
     for attempt in range(retries):
@@ -28,6 +45,8 @@ def run_with_retry(http_session, base_url: str, api_key: str, live_limit: int, h
             last_error = exc
             if attempt < retries - 1:
                 time.sleep(5)
+    if last_error is None:
+        raise RuntimeError("Auto-refresh failed without an explicit error")
     raise last_error
 
 
@@ -41,6 +60,7 @@ def main():
     with create_http_session() as http_session:
         while True:
             try:
+                reconcile_queue_state(http_session, base_url, api_key)
                 result = run_with_retry(http_session, base_url, api_key, live_limit, historical_limit)
                 print(
                     "Auto-refresh tick: "

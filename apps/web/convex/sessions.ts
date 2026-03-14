@@ -106,6 +106,39 @@ export const updateQueueState = mutation({
   }
 });
 
+export const reconcileMissingActiveJobs = mutation({
+  args: {
+    activeJobIds: v.array(v.string()),
+    message: v.optional(v.string())
+  },
+  handler: async (ctx, args) => {
+    const sessions = await ctx.db.query("sessions").collect();
+    const activeSet = new Set(args.activeJobIds);
+    const now = Date.now();
+    let updated = 0;
+
+    for (const session of sessions) {
+      const queueStatus = session.queueStatus ?? "idle";
+      if (queueStatus !== "queued" && queueStatus !== "running") {
+        continue;
+      }
+      if (!session.activeJobId || activeSet.has(session.activeJobId)) {
+        continue;
+      }
+
+      await ctx.db.patch(session._id, {
+        queueStatus: "idle",
+        activeJobId: undefined,
+        lastCompletedAt: now,
+        lastQueueError: args.message ?? "Worker job no longer exists in the queue"
+      });
+      updated += 1;
+    }
+
+    return { updated };
+  }
+});
+
 export const getExplorerData = query({
   args: {
     limit: v.optional(v.number()),
