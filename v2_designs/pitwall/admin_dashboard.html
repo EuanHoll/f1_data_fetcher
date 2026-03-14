@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Pace Lab | System Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-role="admin">
+    <div class="system-header warning-bg">
+        <div class="sys-id">SYSTEM.ID // F1_PACE_LAB_V2.0.0 [ADMIN_MODE]</div>
+        <div class="sys-status">
+            <span class="status-indicator warning"></span>
+            SYS.ADMIN_OVR
+        </div>
+        <div class="sys-time" id="clock">00:00:00 UTC</div>
+    </div>
+
+    <nav class="navbar admin-navbar">
+        <div class="logo">
+            <span class="logo-text text-danger">PACE LAB</span>
+            <span class="logo-beta bg-danger">SYS.ADMIN</span>
+        </div>
+        <div class="nav-modules">
+            <button class="nav-module" onclick="location.href='index.html'">Module 01: Home</button>
+            <button class="nav-module" onclick="location.href='session_explorer.html'">Module 02: Explore</button>
+            <button class="nav-module" onclick="location.href='comparison_lab.html'">Module 03: Compare</button>
+            <button class="nav-module active" data-target="admin">Module 05: Core Systems</button>
+        </div>
+        <div class="auth-panel">
+            <div class="dropdown">
+                <button class="btn btn-auth text-danger hover-dropdown">ROOT_ADMIN ▼</button>
+                <div class="dropdown-content">
+                    <a href="#" onclick="switchRole('user')">Switch to User View</a>
+                    <a href="#" class="text-danger">Log Out</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="dashboard-grid split-view">
+        <aside class="side-panel">
+            <div class="panel alert-panel">
+                <div class="panel-header">
+                    <h3 class="text-danger">> ELEVATED_PRIVILEGES</h3>
+                </div>
+                <div class="panel-content">
+                    <p class="mono-text">Caution: Actions in this module directly impact backend infrastructure and database states.</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>> SYSTEM_CONTROLS</h3>
+                </div>
+                <div class="panel-content">
+                    <ul class="workspace-menu admin-menu">
+                        <li class="active">> MANUAL_INGESTION</li>
+                        <li>> WORKER_STATUS</li>
+                        <li>> DATABASE_MIGRATION</li>
+                        <li class="text-danger">> PURGE_CACHE</li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>> DATA_INGESTION_ENGINE</h2>
+                <div class="panel-controls">
+                    <span class="badge fp">PIPELINE_IDLE</span>
+                </div>
+            </div>
+            
+            <div class="panel-content">
+                <div class="data-row mb-4">
+                    <div class="data-box">
+                        <span class="data-label">API_RATE_LIMIT</span>
+                        <span class="data-value status-ok">98% AVAIL</span>
+                    </div>
+                    <div class="data-box">
+                        <span class="data-label">LAST_INGEST</span>
+                        <span class="data-value">02:14:00 AGO</span>
+                    </div>
+                </div>
+
+                <div class="builder-section">
+                    <h4>> INITIATE_MANUAL_WORKFLOW</h4>
+                    <form class="tech-form mt-2">
+                        <div class="form-group">
+                            <label>TARGET_DATASET</label>
+                            <select class="tech-input">
+                                <option>LATEST_RACE_WEEKEND</option>
+                                <option>HISTORIC_SEASON_2023</option>
+                                <option>DRIVER_STANDINGS_SYNC</option>
+                                <option>CONSTRUCTORS_SYNC</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group checkbox-group mt-2">
+                            <label class="tech-checkbox"><input type="checkbox" checked> <span>FORCE_OVERWRITE (Ignore Cache)</span></label>
+                            <label class="tech-checkbox"><input type="checkbox"> <span>VERBOSE_LOGGING</span></label>
+                        </div>
+                        
+                        <div class="action-grid mt-4">
+                            <button type="button" class="btn btn-primary btn-large bg-danger border-danger full-width" onclick="alert('Ingestion workflow initiated.')">
+                                <span class="icon">[!]</span> SEND OFF THE WORKS (EXECUTE)
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="terminal-box mt-4">
+                    <div class="terminal-header">sys_log.out</div>
+                    <div class="terminal-body">
+                        <div>> System Ready. Waiting for commands.</div>
+                        <div class="text-secondary">> Pipeline connected to Ergast API proxy.</div>
+                        <div class="text-secondary">> Pipeline connected to FastF1 Livetiming stream.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

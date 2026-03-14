@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Pace Lab | Saved Views</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="system-header">
+        <div class="sys-id">SYSTEM.ID // F1_PACE_LAB_V2.0.0</div>
+        <div class="sys-status">
+            <span class="status-indicator online"></span>
+            SYS.ONLINE
+        </div>
+        <div class="sys-time" id="clock">00:00:00 UTC</div>
+    </div>
+
+    <nav class="navbar">
+        <div class="logo">
+            <span class="logo-text">PACE LAB</span>
+            <span class="logo-beta">BETA</span>
+        </div>
+        <div class="nav-modules">
+            <button class="nav-module" onclick="location.href='index.html'">Module 01: Home</button>
+            <button class="nav-module" onclick="location.href='session_explorer.html'">Module 02: Explore</button>
+            <button class="nav-module" onclick="location.href='comparison_lab.html'">Module 03: Compare</button>
+            <button class="nav-module active" data-target="saved">Module 04: Saved</button>
+        </div>
+        <div class="auth-panel">
+            <button class="btn btn-auth user-logged-in">ENG_USER_842</button>
+        </div>
+    </nav>
+
+    <main class="dashboard-grid split-view">
+        <aside class="side-panel">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>> USER_WORKSPACE</h3>
+                </div>
+                <div class="panel-content">
+                    <ul class="workspace-menu">
+                        <li class="active">> SAVED_COMPARISONS</li>
+                        <li>> CUSTOM_PRESETS</li>
+                        <li class="admin-only">> IMPORT_TELEMETRY_DATA <span class="lock-icon">[!]</span></li>
+                        <li class="admin-only">> PURGE_CACHE</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="panel alert-panel">
+                <div class="panel-header">
+                    <h3 class="warning-text">> SECURITY_NOTICE</h3>
+                </div>
+                <div class="panel-content">
+                    <p class="mono-text">Admin ingestion vectors locked. Reach out to SYS_ADMIN for write privileges to ingest server.</p>
+                </div>
+            </div>
+        </aside>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>> WORKSPACE_ARCHIVE // DIRECTORY: /SAVED_VIEWS/</h2>
+                <div class="panel-controls">
+                    <button class="btn btn-icon">[+ NEW]</button>
+                </div>
+            </div>
+            <div class="panel-content layout-grid">
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h4>VER_v_NOR_BAHRAIN_STINT_2</h4>
+                        <span class="date-stamp">2024-03-03T14:22:00Z</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="mono-text">Comparison of Max Verstappen and Lando Norris during the second stint on hard tires.</p>
+                        <div class="tags">
+                            <span class="badge race">RACE</span>
+                            <span class="tag pilot-tag ver">VER</span>
+                            <span class="tag pilot-tag nor">NOR</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-secondary full-width">LOAD_VIEW</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h4>ALL_TEAMS_QUALIFYING_SECTOR_1</h4>
+                        <span class="date-stamp">2024-03-01T18:45:00Z</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="mono-text">Sector 1 micro-sector analysis for all top 10 runners in Q3.</p>
+                        <div class="tags">
+                            <span class="badge quali">QUAL</span>
+                            <span class="tag">TOP10</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-secondary full-width">LOAD_VIEW</button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

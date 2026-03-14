@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Pace Lab | Minimal Edition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">F1 Pace Lab</a>
+            <div class="nav-links">
+                <a href="#" class="nav-link active">Home</a>
+                <a href="session_explorer.html" class="nav-link">Session Explorer</a>
+                <a href="comparison_lab.html" class="nav-link">Comparison Lab</a>
+                <a href="saved_views.html" class="nav-link">Saved Views</a>
+            </div>
+            <div class="nav-actions">
+                <button class="btn btn-secondary">Sign In</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="hero-section">
+        <div class="hero-container">
+            <span class="badge">Version 2.0</span>
+            <h1 class="hero-title">Elevate your race <br> pace analysis.</h1>
+            <p class="hero-subtitle">
+                Turn complex ingested telemetry into clear, actionable insights. 
+                Explore sessions, compare driver deltas, and refine your strategy with absolute clarity.
+            </p>
+            <div class="hero-cta-group">
+                <button class="btn btn-primary">Start Exploring</button>
+                <button class="btn btn-tertiary">View Features</button>
+            </div>
+        </div>
+    </main>
+
+    <section class="features-section">
+        <div class="features-container">
+            <div class="feature-card">
+                <div class="icon-wrapper">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <h3>Session-First Flow</h3>
+                <p>Open a race weekend, inspect pace shape, then move directly into a comparison without exporting data.</p>
+                <a href="#" class="text-link">Learn more &rarr;</a>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon-wrapper">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                </div>
+                <h3>Driver Comparisons</h3>
+                <p>Filter to one track and one session type to build a same-circuit comparison across seasons effortlessly.</p>
+                <a href="#" class="text-link">Learn more &rarr;</a>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon-wrapper">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                </div>
+                <h3>Owned Analysis</h3>
+                <p>Saved views stay user-owned. Sign in to curate your personal workspaces and retain your insights.</p>
+                <a href="#" class="text-link">Learn more &rarr;</a>
+            </div>
+        </div>
+    </section>
+
+    <script src="app.js"></script>
+</body>
+</html>

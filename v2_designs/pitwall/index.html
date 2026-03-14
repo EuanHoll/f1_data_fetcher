@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Pace Lab | Pit Wall Edition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="system-header">
+        <div class="sys-id">SYSTEM.ID // F1_PACE_LAB_V2.0.0</div>
+        <div class="sys-status">
+            <span class="status-indicator online"></span>
+            SYS.ONLINE
+        </div>
+        <div class="sys-time" id="clock">00:00:00 UTC</div>
+    </div>
+
+    <nav class="navbar">
+        <div class="logo">
+            <span class="logo-text">PACE LAB</span>
+            <span class="logo-beta">BETA</span>
+        </div>
+        <div class="nav-modules">
+            <button class="nav-module active" data-target="home">Module 01: Home</button>
+            <button class="nav-module" onclick="location.href='session_explorer.html'">Module 02: Explore</button>
+            <button class="nav-module" onclick="location.href='comparison_lab.html'">Module 03: Compare</button>
+            <button class="nav-module" onclick="location.href='saved_views.html'">Module 04: Saved</button>
+        </div>
+        <div class="auth-panel">
+            <button class="btn btn-auth">AUTHENTICATE [USER]</button>
+        </div>
+    </nav>
+
+    <main class="dashboard-grid">
+        <section class="panel main-panel">
+            <div class="panel-header">
+                <h2>> OVERVIEW_DISPLAY</h2>
+                <div class="panel-controls">...</div>
+            </div>
+            <div class="panel-content hero-content">
+                <h1 class="target-head">Turn ingested telemetry into actionable analysis.</h1>
+                <p class="target-desc">
+                    System leads with exploration, comparison, and saved states. Ingestion machinery operates autonomously in the background.
+                </p>
+                
+                <div class="data-row">
+                    <div class="data-box">
+                        <span class="data-label">ACTIVE_SESSIONS</span>
+                        <span class="data-value">LOAD(TBD)</span>
+                    </div>
+                    <div class="data-box">
+                        <span class="data-label">DB_CONNECTIONS</span>
+                        <span class="data-value warning">OPTIMIZING</span>
+                    </div>
+                </div>
+
+                <div class="action-grid">
+                    <button class="btn btn-primary btn-large">
+                        <span class="icon">[>]</span> INITIATE EXPLORATION
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <aside class="side-panel">
+            <div class="panel module-panel">
+                <div class="panel-header">
+                    <h3>> SESSION_LAB</h3>
+                </div>
+                <div class="panel-content">
+                    <p class="mono-text">Open full race weekend scope. Inspect raw pace shape before bridging to comparison array.</p>
+                </div>
+            </div>
+
+            <div class="panel module-panel">
+                <div class="panel-header">
+                    <h3>> DELTA_COMPARE</h3>
+                </div>
+                <div class="panel-content">
+                    <p class="mono-text">Cross-reference drivers spanning singular sessions or identical track/types across historical seasons.</p>
+                </div>
+            </div>
+
+            <div class="panel module-panel">
+                <div class="panel-header">
+                    <h3>> SAVED_STATES</h3>
+                </div>
+                <div class="panel-content">
+                    <p class="mono-text">Authenticated users retain custom dashboard layouts and persistent workspace views.</p>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Pace Lab | Comparison Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="system-header">
+        <div class="sys-id">SYSTEM.ID // F1_PACE_LAB_V2.0.0</div>
+        <div class="sys-status">
+            <span class="status-indicator online"></span>
+            SYS.ONLINE
+        </div>
+        <div class="sys-time" id="clock">00:00:00 UTC</div>
+    </div>
+
+    <nav class="navbar">
+        <div class="logo">
+            <span class="logo-text">PACE LAB</span>
+            <span class="logo-beta">BETA</span>
+        </div>
+        <div class="nav-modules">
+            <button class="nav-module" onclick="location.href='index.html'">Module 01: Home</button>
+            <button class="nav-module" onclick="location.href='session_explorer.html'">Module 02: Explore</button>
+            <button class="nav-module active" data-target="compare">Module 03: Compare</button>
+            <button class="nav-module" onclick="location.href='saved_views.html'">Module 04: Saved</button>
+        </div>
+        <div class="auth-panel">
+            <button class="btn btn-auth">AUTHENTICATE [USER]</button>
+        </div>
+    </nav>
+
+    <main class="dashboard-grid split-view-compare">
+        <aside class="side-panel builder-panel">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>> MATRIX_BUILDER</h3>
+                </div>
+                <div class="panel-content">
+                    <div class="builder-section">
+                        <h4>1 // SELECT_SESSIONS</h4>
+                        <button class="btn btn-secondary full-width">[+] ADD_SESSION_NODE</button>
+                        <div class="selected-items mt-2">
+                            <div class="tag">2024_BAHRAIN_RACE <button class="btn-close">x</button></div>
+                        </div>
+                    </div>
+                    
+                    <div class="builder-section mt-4">
+                        <h4>2 // ASSIGN_PILOTS</h4>
+                        <button class="btn btn-secondary full-width">[+] ADD_PILOT_NODE</button>
+                        <div class="selected-items mt-2">
+                            <div class="tag pilot-tag ver">VER <button class="btn-close">x</button></div>
+                            <div class="tag pilot-tag nor">NOR <button class="btn-close">x</button></div>
+                            <div class="tag pilot-tag lec">LEC <button class="btn-close">x</button></div>
+                        </div>
+                    </div>
+
+                    <div class="builder-section mt-4">
+                        <button class="btn btn-primary full-width">RENDER_TELEMETRY</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="panel chart-panel">
+            <div class="panel-header">
+                <h2>> LAP_TIME_DELTA_ANALYSIS // VER v NOR v LEC</h2>
+                <div class="panel-controls">
+                    <select class="tech-input small">
+                        <option>METRIC: LAP_TIME (S)</option>
+                        <option>METRIC: TYRE_DEG (EST)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="panel-content chart-container">
+                <!-- Mockup of a chart -->
+                <div class="mock-chart">
+                    <div class="chart-grid"></div>
+                    <div class="chart-line ver-line"></div>
+                    <div class="chart-line nor-line"></div>
+                    <div class="chart-line lec-line"></div>
+                    
+                    <div class="chart-axis-y">
+                        <div>95.0</div>
+                        <div>94.0</div>
+                        <div>93.0</div>
+                    </div>
+                    <div class="chart-axis-x">
+                        <div>L10</div>
+                        <div>L20</div>
+                        <div>L30</div>
+                        <div>L40</div>
+                        <div>L50</div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-footer data-summary">
+                <div class="stat-group">
+                    <span class="stat-label">AVG_PACE_VER</span>
+                    <span class="stat-val ver-color">93.42s</span>
+                </div>
+                <div class="stat-group">
+                    <span class="stat-label">AVG_PACE_NOR</span>
+                    <span class="stat-val nor-color">93.58s</span>
+                </div>
+                <div class="stat-group">
+                    <span class="stat-label">AVG_PACE_LEC</span>
+                    <span class="stat-val lec-color">93.71s</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

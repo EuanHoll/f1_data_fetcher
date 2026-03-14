@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Pace Lab | Session Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="system-header">
+        <div class="sys-id">SYSTEM.ID // F1_PACE_LAB_V2.0.0</div>
+        <div class="sys-status">
+            <span class="status-indicator online"></span>
+            SYS.ONLINE
+        </div>
+        <div class="sys-time" id="clock">00:00:00 UTC</div>
+    </div>
+
+    <nav class="navbar">
+        <div class="logo">
+            <span class="logo-text">PACE LAB</span>
+            <span class="logo-beta">BETA</span>
+        </div>
+        <div class="nav-modules">
+            <button class="nav-module" onclick="location.href='index.html'">Module 01: Home</button>
+            <button class="nav-module active" data-target="explore">Module 02: Explore</button>
+            <button class="nav-module" onclick="location.href='comparison_lab.html'">Module 03: Compare</button>
+            <button class="nav-module" onclick="location.href='saved_views.html'">Module 04: Saved</button>
+        </div>
+        <div class="auth-panel">
+            <button class="btn btn-auth">AUTHENTICATE [USER]</button>
+        </div>
+    </nav>
+
+    <main class="dashboard-grid split-view">
+        <aside class="side-panel filter-panel">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>> QUERY_PARAMETERS</h3>
+                </div>
+                <div class="panel-content">
+                    <form class="tech-form">
+                        <div class="form-group">
+                            <label>SEASON_YEAR</label>
+                            <select class="tech-input">
+                                <option>2026 (CURRENT)</option>
+                                <option>2025</option>
+                                <option>2024</option>
+                                <option>2023</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>CIRCUIT_ID</label>
+                            <select class="tech-input">
+                                <option>BAHRAIN_INTL</option>
+                                <option>JEDDAH_CORNICHE</option>
+                                <option>ALBERT_PARK</option>
+                                <option>SUZUKA</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>SESSION_TYPE</label>
+                            <div class="checkbox-group">
+                                <label class="tech-checkbox"><input type="checkbox" checked> <span>FP1</span></label>
+                                <label class="tech-checkbox"><input type="checkbox" checked> <span>FP2</span></label>
+                                <label class="tech-checkbox"><input type="checkbox" checked> <span>FP3</span></label>
+                                <label class="tech-checkbox"><input type="checkbox" checked> <span>QUALIFYING</span></label>
+                                <label class="tech-checkbox"><input type="checkbox" checked> <span>RACE</span></label>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-primary full-width">EXECUTE_QUERY</button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+
+        <section class="panel data-view-panel">
+            <div class="panel-header">
+                <h2>> SESSION_CATALOG // RESULT_SET: 5</h2>
+                <div class="panel-controls">
+                    <button class="btn btn-icon">[RELOAD]</button>
+                    <button class="btn btn-icon">[EXPORT_CSV]</button>
+                </div>
+            </div>
+            <div class="panel-content table-container">
+                <table class="tech-table">
+                    <thead>
+                        <tr>
+                            <th>SESSION_ID</th>
+                            <th>YEAR</th>
+                            <th>CIRCUIT</th>
+                            <th>TYPE</th>
+                            <th>LAPS_REC</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>S_2024_01_R</td>
+                            <td>2024</td>
+                            <td>BAHRAIN_INTL</td>
+                            <td><span class="badge race">RACE</span></td>
+                            <td>1204</td>
+                            <td><span class="status-ok">VERIFIED</span></td>
+                            <td><button class="btn btn-small">ANALYZE</button></td>
+                        </tr>
+                        <tr>
+                            <td>S_2024_01_Q</td>
+                            <td>2024</td>
+                            <td>BAHRAIN_INTL</td>
+                            <td><span class="badge quali">QUAL</span></td>
+                            <td>312</td>
+                            <td><span class="status-ok">VERIFIED</span></td>
+                            <td><button class="btn btn-small">ANALYZE</button></td>
+                        </tr>
+                        <tr>
+                            <td>S_2024_01_F3</td>
+                            <td>2024</td>
+                            <td>BAHRAIN_INTL</td>
+                            <td><span class="badge fp">FP3</span></td>
+                            <td>450</td>
+                            <td><span class="status-warn">PARTIAL_DATA</span></td>
+                            <td><button class="btn btn-small">ANALYZE</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

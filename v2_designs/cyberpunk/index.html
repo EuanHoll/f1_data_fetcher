@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Pace Lab | Cyberpunk Edition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Background Elements -->
+    <div class="glow-orb red"></div>
+    <div class="glow-orb blue"></div>
+    <div class="grid-overlay"></div>
+
+    <nav class="navbar">
+        <div class="logo">
+            <span class="glitch-text" data-text="F1 PACE LAB">F1 PACE LAB</span>
+        </div>
+        <div class="nav-links">
+            <a href="#" class="nav-link active">Home</a>
+            <a href="session_explorer.html" class="nav-link">Session Explorer</a>
+            <a href="comparison_lab.html" class="nav-link">Comparison Lab</a>
+            <a href="saved_views.html" class="nav-link">Saved Views</a>
+        </div>
+        <div class="nav-actions">
+            <button class="btn-neon outline btn-login">
+                <span class="btn-text">SIGN IN</span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="hero-section">
+        <header class="hero-content">
+            <div class="hero-badge">SYSTEM.READY // V2.0</div>
+            <h1 class="hero-title">
+                TURN DATA INTO <br>
+                <span class="highlight-cyan text-glow">PURE VELOCITY</span>
+            </h1>
+            <p class="hero-subtitle">
+                F1 Pace Lab leads with exploration, comparison, and saved analysis. 
+                Experience race pace analysis redesigned for pure performance.
+            </p>
+            <div class="hero-cta-group">
+                <a href="#workspace" class="btn-neon solid primary-action">
+                    <span class="btn-text">INITIATE EXPLORATION</span>
+                    <span class="btn-decor"></span>
+                </a>
+                <a href="#accounts" class="btn-neon stealth">
+                    <span class="btn-text">VIEW CAPABILITIES</span>
+                </a>
+            </div>
+        </header>
+    </main>
+
+    <section class="features-grid">
+        <div class="feature-card">
+            <div class="card-border"></div>
+            <div class="card-icon cyan">///</div>
+            <h3 class="card-title">SESSION LAB</h3>
+            <p class="card-desc">Open a race weekend, inspect pace shape, then bridge into a comparison with zero latency.</p>
+            <a href="#" class="card-link">EXECUTE &rarr;</a>
+        </div>
+
+        <div class="feature-card">
+            <div class="card-border"></div>
+            <div class="card-icon magenta">///</div>
+            <h3 class="card-title">DRIVER DELTAS</h3>
+            <p class="card-desc">Compare drivers across one session or the same session type at the same track over multiple years.</p>
+            <a href="#" class="card-link">EXECUTE &rarr;</a>
+        </div>
+
+        <div class="feature-card">
+            <div class="card-border"></div>
+            <div class="card-icon yellow">///</div>
+            <h3 class="card-title">SAVED ANALYSIS</h3>
+            <p class="card-desc">Browsing is open overlay. Sign in to bypass restrictions and store personal telemetry views.</p>
+            <a href="#" class="card-link">EXECUTE &rarr;</a>
+        </div>
+    </section>
+
+    <!-- Terminal/Diagnostic aesthetic piece -->
+    <div class="terminal-ticker">
+        <div class="ticker-content" id="ticker-text">
+            > CONNECTION_ESTABLISHED // PING: 12ms // SENSOR_DATA: INCOMING // TRACK_STATUS: GREEN //
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
