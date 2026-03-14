@@ -29,6 +29,10 @@ Should an error occur (for example, if you request data from a future year), an 
 
 ## For Python Developers
 
+### Local self-hosted Convex (for web roadmap)
+
+If you are working on the website migration path, follow `LOCAL_CONVEX_DOCKER_SETUP.md` to run a local self-hosted Convex backend and dashboard with Docker.
+
 ### Requirements
 
 The script requires the following Python libraries:

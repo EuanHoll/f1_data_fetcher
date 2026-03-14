@@ -1,0 +1,53 @@
+services:
+  backend:
+    image: ghcr.io/get-convex/convex-backend:latest
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    ports:
+      - "${PORT:-3210}:3210"
+      - "${SITE_PROXY_PORT:-3211}:3211"
+    volumes:
+      - convex_data:/convex/data
+    environment:
+      - CONVEX_CLOUD_ORIGIN=${CONVEX_CLOUD_ORIGIN:-http://127.0.0.1:${PORT:-3210}}
+      - CONVEX_SITE_ORIGIN=${CONVEX_SITE_ORIGIN:-http://127.0.0.1:${SITE_PROXY_PORT:-3211}}
+      - INSTANCE_NAME=${INSTANCE_NAME:-f1-pace-lab-local}
+      - RUST_LOG=${RUST_LOG:-info}
+      - DISABLE_METRICS_ENDPOINT=${DISABLE_METRICS_ENDPOINT:-true}
+      - DOCUMENT_RETENTION_DELAY=${DOCUMENT_RETENTION_DELAY:-172800}
+      - DATABASE_URL
+      - POSTGRES_URL
+      - MYSQL_URL
+      - S3_ENDPOINT_URL
+      - S3_STORAGE_EXPORTS_BUCKET
+      - S3_STORAGE_FILES_BUCKET
+      - S3_STORAGE_MODULES_BUCKET
+      - S3_STORAGE_SEARCH_BUCKET
+      - S3_STORAGE_SNAPSHOT_IMPORTS_BUCKET
+      - AWS_REGION
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_S3_FORCE_PATH_STYLE
+      - AWS_S3_DISABLE_SSE
+      - AWS_S3_DISABLE_CHECKSUMS
+    healthcheck:
+      test: curl -f http://localhost:3210/version
+      interval: 5s
+      start_period: 10s
+
+  dashboard:
+    image: ghcr.io/get-convex/convex-dashboard:latest
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    ports:
+      - "${DASHBOARD_PORT:-6791}:6791"
+    environment:
+      - NEXT_PUBLIC_DEPLOYMENT_URL=${NEXT_PUBLIC_DEPLOYMENT_URL:-http://127.0.0.1:${PORT:-3210}}
+      - NEXT_PUBLIC_LOAD_MONACO_INTERNALLY=${NEXT_PUBLIC_LOAD_MONACO_INTERNALLY:-true}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  convex_data:

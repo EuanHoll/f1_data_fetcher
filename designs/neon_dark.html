@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Apex - F1 Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        neon: {
+                            blue: '#00f3ff',
+                            red: '#ff003c',
+                            purple: '#b500ff',
+                            dark: '#050510',
+                            card: 'rgba(20, 20, 35, 0.7)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #050510;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 243, 255, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(255, 0, 60, 0.08), transparent 25%);
+            color: #e2e8f0;
+        }
+        .neon-border {
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1) inset;
+        }
+        .neon-text-blue {
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.6);
+        }
+        .glass-panel {
+            background: rgba(15, 15, 25, 0.6);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden selection:bg-neon-blue selection:text-black">
+    
+    <!-- Sidebar -->
+    <aside class="w-64 glass-panel border-r border-gray-800 flex flex-col h-full z-10">
+        <div class="h-20 flex items-center px-6 border-b border-gray-800">
+            <h1 class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple tracking-wider">APEX<span class="text-white">.f1</span></h1>
+        </div>
+        <nav class="flex-1 px-4 py-8 space-y-2">
+            <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-neon-blue/10 text-neon-blue neon-border transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <span class="font-semibold">Session Explorer</span>
+            </a>
+            <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <span class="font-medium">Compare Drivers</span>
+            </a>
+            <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                <span class="font-medium">Saved Views</span>
+            </a>
+        </nav>
+        <div class="p-4 border-t border-gray-800">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-neon-blue to-neon-purple p-[2px]">
+                    <div class="w-full h-full bg-neon-dark rounded-full flex items-center justify-center font-bold text-sm">EU</div>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-white">Euan Analyst</p>
+                    <p class="text-xs text-neon-blue">Pro Tier</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full relative z-0">
+        <!-- Topbar -->
+        <header class="h-20 glass-panel border-b border-gray-800 flex items-center justify-between px-8">
+            <div class="flex items-center space-x-4">
+                <select class="bg-gray-900 border border-gray-700 text-white text-sm rounded-lg focus:ring-neon-blue focus:border-neon-blue block p-2.5 outline-none transition-colors">
+                    <option>2025 Season</option>
+                    <option>2024 Season</option>
+                </select>
+                <span class="text-gray-500">/</span>
+                <select class="bg-gray-900 border border-gray-700 text-white text-sm rounded-lg focus:ring-neon-blue focus:border-neon-blue block p-2.5 outline-none transition-colors">
+                    <option>Round 1 - Bahrain GP</option>
+                    <option>Round 2 - Saudi Arabia</option>
+                </select>
+                <span class="text-gray-500">/</span>
+                <div class="flex bg-gray-900 rounded-lg p-1 border border-gray-700 cursor-pointer">
+                    <div class="px-3 py-1 text-sm text-gray-400 hover:text-white rounded-md transition-colors">FP1</div>
+                    <div class="px-3 py-1 text-sm text-gray-400 hover:text-white rounded-md transition-colors">FP2</div>
+                    <div class="px-3 py-1 text-sm text-gray-400 hover:text-white rounded-md transition-colors">FP3</div>
+                    <div class="px-3 py-1 text-sm bg-gray-800 text-white rounded-md shadow">Qualifying</div>
+                    <div class="px-3 py-1 text-sm text-gray-400 hover:text-white rounded-md transition-colors">Race</div>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button class="px-4 py-2 text-sm font-medium text-white glass-panel rounded-lg hover:bg-white/10 transition-colors flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span>Export CSV</span>
+                </button>
+                <button class="px-4 py-2 text-sm font-medium text-black bg-neon-blue rounded-lg shadow-[0_0_15px_rgba(0,243,255,0.4)] hover:bg-cyan-300 transition-colors">
+                    Share View
+                </button>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <div class="flex-1 overflow-auto p-8">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white mb-2">Qualifying Pace Analysis</h2>
+                        <p class="text-gray-400">Comparing pole contenders: Verstappen vs Leclerc</p>
+                    </div>
+                    <div class="flex space-x-8 text-right">
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-widest uppercase">Pole Time</p>
+                            <p class="text-2xl font-mono text-neon-blue neon-text-blue">1:29.708</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-widest uppercase">Delta</p>
+                            <p class="text-2xl font-mono text-neon-red">+0.124</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Chart -->
+                <div class="glass-panel rounded-xl p-6 relative group border border-gray-800">
+                    <div class="absolute inset-0 bg-gradient-to-r from-neon-blue/5 to-transparent rounded-xl pointer-events-none"></div>
+                    <h3 class="text-sm font-semibold tracking-wider text-gray-400 mb-4 uppercase">Telemetry - Speed (km/h) vs Distance</h3>
+                    <div class="h-80 w-full">
+                        <canvas id="telemetryChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Left Panel -->
+                    <div class="glass-panel rounded-xl p-6 border border-gray-800">
+                        <h3 class="text-sm font-semibold tracking-wider text-gray-400 mb-4 uppercase">Sector Analysis</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                                <span class="text-gray-300">Sector 1</span>
+                                <div class="flex items-center space-x-4">
+                                    <span class="font-mono text-neon-blue">28.452</span>
+                                    <span class="font-mono text-gray-500 line-through">28.501</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+                                <span class="text-gray-300">Sector 2</span>
+                                <div class="flex items-center space-x-4">
+                                    <span class="font-mono text-gray-500 line-through">38.902</span>
+                                    <span class="font-mono text-neon-red text-shadow">38.711</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pb-1">
+                                <span class="text-gray-300">Sector 3</span>
+                                <div class="flex items-center space-x-4">
+                                    <span class="font-mono text-neon-blue">22.354</span>
+                                    <span class="font-mono text-gray-500">22.620</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel -->
+                    <div class="glass-panel rounded-xl p-6 border border-gray-800">
+                        <h3 class="text-sm font-semibold tracking-wider text-gray-400 mb-4 uppercase">Speed Traps</h3>
+                        <div class="h-40 flex items-center justify-around">
+                            <div class="text-center">
+                                <p class="text-gray-400 text-sm mb-2">Finish Line</p>
+                                <p class="text-3xl font-mono text-neon-blue">318<span class="text-sm text-gray-500">km/h</span></p>
+                                <p class="text-xs mt-1 text-gray-500">VER Focus</p>
+                            </div>
+                            <div class="h-full w-px bg-gray-800"></div>
+                            <div class="text-center">
+                                <p class="text-gray-400 text-sm mb-2">Speed Trap</p>
+                                <p class="text-3xl font-mono text-neon-red">324<span class="text-sm text-gray-500">km/h</span></p>
+                                <p class="text-xs mt-1 text-gray-500">LEC Advantage</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const ctx = document.getElementById('telemetryChart').getContext('2d');
+        Chart.defaults.color = '#718096';
+        Chart.defaults.font.family = "'Outfit', sans-serif";
+        
+        // Mock sinusoidal telemetry data for "speed"
+        const labels = Array.from({length: 100}, (_, i) => i * 50); // distance
+        const verSpeed = labels.map(x => 180 + 130 * Math.sin(x/500) + Math.random()*10);
+        const lecSpeed = labels.map(x => 180 + 135 * Math.sin((x+50)/500) + Math.random()*10);
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'VER (Red Bull)',
+                        data: verSpeed,
+                        borderColor: '#00f3ff',
+                        backgroundColor: 'rgba(0, 243, 255, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'LEC (Ferrari)',
+                        data: lecSpeed,
+                        borderColor: '#ff003c',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            boxWidth: 8
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 15, 25, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#e2e8f0',
+                        borderColor: 'rgba(0, 243, 255, 0.3)',
+                        borderWidth: 1,
+                        padding: 12,
+                        boxPadding: 6
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        title: { display: true, text: 'Distance (m)' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        title: { display: true, text: 'Speed (km/h)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
