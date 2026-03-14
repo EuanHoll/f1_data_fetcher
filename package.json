@@ -1,0 +1,14 @@
+{
+  "name": "f1_data_fetcher",
+  "private": true,
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "web:dev": "npm run dev --workspace @f1/pace-lab-web",
+    "web:build": "npm run build --workspace @f1/pace-lab-web",
+    "web:start": "npm run start --workspace @f1/pace-lab-web",
+    "web:lint": "npm run lint --workspace @f1/pace-lab-web",
+    "web:convex:dev": "npm run convex:dev --workspace @f1/pace-lab-web"
+  }
+}
