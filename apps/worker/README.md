@@ -19,17 +19,23 @@ This worker fetches FastF1 data and pushes it into Convex through the Next API b
 
 ### Recommended: Docker-contained worker API
 
-The local stack now runs a FastAPI worker control API inside Docker (`worker`) with Valkey + RQ for durable queueing and multiple `worker-runner` processes for parallel execution. The web app fans out bulk requests into one job per session, so pending ingestion can be processed concurrently instead of one giant sequential batch.
+The local stack now runs a FastAPI worker control API inside Docker (`worker`) with Valkey + RQ for durable queueing and a scalable `worker-runner` service for parallel execution. The web app fans out bulk requests into one job per session, so pending ingestion can be processed concurrently instead of one giant sequential batch.
 
 Start the full stack from repo root:
 
 ```bash
-docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d --build
+docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d --build --scale worker-runner=3
 ```
 
 Then use `/ingestion` in the web UI to queue single/batch ingest jobs.
 
-By default the compose stack starts three queue consumers: `worker-runner`, `worker-runner-2`, and `worker-runner-3`.
+Then run the one-shot catalog bootstrap:
+
+```bash
+docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml --profile bootstrap run --rm worker-bootstrap
+```
+
+You can increase or decrease ingestion concurrency by changing the `worker-runner` scale count.
 
 The worker uses `uv` with dependency metadata in `apps/worker/pyproject.toml` and a committed lockfile at `apps/worker/uv.lock` so installs stay reproducible.
 

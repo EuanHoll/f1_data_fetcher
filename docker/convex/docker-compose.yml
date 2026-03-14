@@ -40,6 +40,7 @@ services:
         condition: service_healthy
 
   dashboard:
+    profiles: ["tools"]
     image: ghcr.io/get-convex/convex-dashboard:${CONVEX_VERSION:-latest}
     stop_grace_period: 10s
     stop_signal: SIGINT
@@ -99,6 +100,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile.dev
+    image: convex-web:latest
     working_dir: /workspace
     command: sh -c "npm install && npm run web:dev"
     ports:
@@ -124,9 +126,11 @@ services:
         condition: service_healthy
 
   convex-dev:
+    profiles: ["dev"]
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile.dev
+    image: convex-web:latest
     working_dir: /workspace
     command: sh -c "npm install && npm run web:convex:dev"
     environment:
@@ -143,6 +147,7 @@ services:
         condition: service_healthy
 
   worker:
+    image: convex-worker-base:latest
     build:
       context: ../..
       dockerfile: apps/worker/Dockerfile
@@ -172,57 +177,7 @@ services:
         condition: service_healthy
 
   worker-runner:
-    build:
-      context: ../..
-      dockerfile: apps/worker/Dockerfile
-    command: ["/usr/local/bin/uv", "run", "python", "-m", "app.workers.runner"]
-    environment:
-      - INGEST_API_KEY=${INGEST_API_KEY}
-      - WORKER_API_KEY=${WORKER_API_KEY}
-      - INGEST_BASE_URL=${INGEST_BASE_URL:-http://web:3000}
-      - FASTF1_CACHE_DIR=/data/fastf1-cache
-      - VALKEY_URL=${VALKEY_URL:-redis://valkey:6379/0}
-      - RQ_QUEUE_NAME=${RQ_QUEUE_NAME:-ingest}
-    volumes:
-      - worker_fastf1_cache:/data/fastf1-cache
-    depends_on:
-      backend:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
-      valkey:
-        condition: service_healthy
-      web:
-        condition: service_started
-
-  worker-runner-2:
-    build:
-      context: ../..
-      dockerfile: apps/worker/Dockerfile
-    command: ["/usr/local/bin/uv", "run", "python", "-m", "app.workers.runner"]
-    environment:
-      - INGEST_API_KEY=${INGEST_API_KEY}
-      - WORKER_API_KEY=${WORKER_API_KEY}
-      - INGEST_BASE_URL=${INGEST_BASE_URL:-http://web:3000}
-      - FASTF1_CACHE_DIR=/data/fastf1-cache
-      - VALKEY_URL=${VALKEY_URL:-redis://valkey:6379/0}
-      - RQ_QUEUE_NAME=${RQ_QUEUE_NAME:-ingest}
-    volumes:
-      - worker_fastf1_cache:/data/fastf1-cache
-    depends_on:
-      backend:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
-      valkey:
-        condition: service_healthy
-      web:
-        condition: service_started
-
-  worker-runner-3:
-    build:
-      context: ../..
-      dockerfile: apps/worker/Dockerfile
+    image: convex-worker-base:latest
     command: ["/usr/local/bin/uv", "run", "python", "-m", "app.workers.runner"]
     environment:
       - INGEST_API_KEY=${INGEST_API_KEY}
@@ -244,9 +199,8 @@ services:
         condition: service_started
 
   worker-bootstrap:
-    build:
-      context: ../..
-      dockerfile: apps/worker/Dockerfile
+    profiles: ["bootstrap"]
+    image: convex-worker-base:latest
     command: ["/usr/local/bin/uv", "run", "python", "-m", "app.scripts.bootstrap_catalog"]
     environment:
       - INGEST_API_KEY=${INGEST_API_KEY}
