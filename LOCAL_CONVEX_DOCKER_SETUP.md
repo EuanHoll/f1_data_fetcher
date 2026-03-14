@@ -11,6 +11,7 @@ It is intended as the first infrastructure step before building the Next.js fron
 - Convex dashboard on `http://127.0.0.1:6791`
 - Next.js web app on `http://127.0.0.1:3000`
 - Python ingestion control API on `http://127.0.0.1:8080`
+- Convex function sync watcher (`convex-dev` service) that auto-creates/updates schema and functions
 - MinIO S3 API on `http://127.0.0.1:9000`
 - MinIO console on `http://127.0.0.1:9001`
 - Local persisted data in a Docker named volume (`convex_data_s3`)
@@ -100,6 +101,12 @@ npx convex dev
 - Web app: `http://127.0.0.1:3000`
 - Worker health: `http://127.0.0.1:8080/health`
 - MinIO health: `http://127.0.0.1:9000/minio/health/live`
+
+If tables/functions are missing, check the `convex-dev` service logs:
+
+```bash
+docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml logs -f convex-dev
+```
 
 ## Common operations
 

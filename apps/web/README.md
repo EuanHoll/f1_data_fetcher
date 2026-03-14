@@ -37,6 +37,7 @@ docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml
 ```
 
 This keeps ingestion execution inside the `worker` container and avoids launching host terminal processes.
+It also runs a `convex-dev` watcher service in Docker so schema/tables/functions are pushed automatically.
 
 ## Push Convex functions
 

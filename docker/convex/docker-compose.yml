@@ -113,6 +113,25 @@ services:
       worker:
         condition: service_started
 
+  convex-dev:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.dev
+    working_dir: /workspace
+    command: sh -c "npm install && npm run web:convex:dev"
+    environment:
+      - CONVEX_SELF_HOSTED_URL=${CONVEX_SELF_HOSTED_URL:-http://backend:3210}
+      - CONVEX_SELF_HOSTED_ADMIN_KEY=${CONVEX_SELF_HOSTED_ADMIN_KEY}
+      - NEXT_PUBLIC_CONVEX_URL=${NEXT_PUBLIC_CONVEX_URL:-http://127.0.0.1:${PORT:-3210}}
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ../..:/workspace
+      - web_node_modules:/workspace/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
   worker:
     build:
       context: ../..
