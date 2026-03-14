@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
+import { auth } from "@/auth";
 import { api } from "@/convex/_generated/api";
+import { isViewerAdmin } from "@/lib/authz";
 
 export const runtime = "nodejs";
 
@@ -161,6 +163,11 @@ async function getFilteredPendingSessions(
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user || !isViewerAdmin({ id: session.user.id, email: session.user.email })) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
     const body = (await request.json()) as Record<string, unknown>;
     const action = String(body.action ?? "");
     const context = getWorkerContext(request);

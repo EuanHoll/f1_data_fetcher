@@ -64,7 +64,8 @@ export const upsertFromAuthProfile = mutation({
   args: {
     authSubject: v.string(),
     email: v.optional(v.string()),
-    displayName: v.optional(v.string())
+    displayName: v.optional(v.string()),
+    role: v.optional(v.union(v.literal("admin"), v.literal("user")))
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -78,6 +79,7 @@ export const upsertFromAuthProfile = mutation({
       await ctx.db.patch(existing._id, {
         email: args.email,
         displayName: args.displayName,
+        role: args.role ?? existing.role,
         updatedAt: now
       });
       return existing._id;
@@ -87,7 +89,7 @@ export const upsertFromAuthProfile = mutation({
       authSubject: args.authSubject,
       email: args.email,
       displayName: args.displayName,
-      role: "user",
+      role: args.role ?? "user",
       createdAt: now,
       updatedAt: now
     });

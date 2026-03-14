@@ -9,7 +9,7 @@ async function getCurrentUserId(ctx: any) {
 
   const user = await ctx.db
     .query("users")
-    .withIndex("by_auth_subject", (q) => q.eq("authSubject", identity.subject))
+    .withIndex("by_auth_subject", (q: any) => q.eq("authSubject", identity.subject))
     .first();
 
   if (!user) {
@@ -51,7 +51,7 @@ export const getPublicById = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_auth_subject", (q) => q.eq("authSubject", identity.subject))
+      .withIndex("by_auth_subject", (q: any) => q.eq("authSubject", identity.subject))
       .first();
 
     if (!user || user._id !== view.ownerId) {

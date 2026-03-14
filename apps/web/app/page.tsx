@@ -1,29 +1,49 @@
+import { auth } from "@/auth";
 import { AuthPanel } from "@/components/auth-panel";
 import { ComparisonLab } from "@/components/comparison-lab";
 import { CoveragePanel } from "@/components/coverage-panel";
 import { SavedViewsPanel } from "@/components/saved-views-panel";
 import { SessionExplorer } from "@/components/session-explorer";
+import { isViewerAdmin } from "@/lib/authz";
 import Link from "next/link";
 
-const checks = [
+const productStats = [
   {
-    label: "Convex Backend URL",
-    value: process.env.NEXT_PUBLIC_CONVEX_URL ?? "missing",
-    good: Boolean(process.env.NEXT_PUBLIC_CONVEX_URL)
+    label: "Explore sessions",
+    value: "Live"
   },
   {
-    label: "Self-hosted URL",
-    value: process.env.CONVEX_SELF_HOSTED_URL ?? "missing",
-    good: Boolean(process.env.CONVEX_SELF_HOSTED_URL)
+    label: "Compare drivers",
+    value: "Lap-by-lap"
   },
   {
-    label: "Self-hosted Admin Key",
-    value: process.env.CONVEX_SELF_HOSTED_ADMIN_KEY ? "configured" : "missing",
-    good: Boolean(process.env.CONVEX_SELF_HOSTED_ADMIN_KEY)
+    label: "Save analysis",
+    value: "Account-ready"
   }
 ];
 
-export default function HomePage() {
+const productPillars = [
+  {
+    title: "Session-first workflow",
+    description: "Open a race weekend, inspect pace shape, then move directly into a comparison without exporting data."
+  },
+  {
+    title: "Built for actual questions",
+    description: "The app is organized around pace analysis, stint stories, and driver deltas instead of backend diagnostics."
+  },
+  {
+    title: "Operational controls stay intact",
+    description: "Ingestion remains available for admins, but the public product stays clean and user-focused."
+  }
+];
+
+export default async function HomePage() {
+  const session = await auth();
+  const isAdmin = isViewerAdmin({
+    id: session?.user?.id,
+    email: session?.user?.email
+  });
+
   return (
     <>
       <header className="topbar">
@@ -32,39 +52,99 @@ export default function HomePage() {
             <div className="brand-mark">PL</div>
             <div>
               <p style={{ margin: 0, fontWeight: 700, lineHeight: 1.2 }}>F1 Pace Lab</p>
-              <p style={{ margin: 0, color: "#6d7f95", fontSize: "0.83rem" }}>Session Explorer</p>
+              <p style={{ margin: 0, color: "#6d7f95", fontSize: "0.83rem" }}>Race pace analysis for the web</p>
             </div>
           </div>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <Link className="btn" href="/ingestion">
-              Ingestion Control
-            </Link>
-            {checks.map((check) => (
-              <span key={check.label} className="pill" style={{ background: check.good ? "#effaf3" : "#fff3f3" }}>
-                <span style={{ color: check.good ? "#157647" : "#b03a3a", fontWeight: 700 }}>{check.good ? "OK" : "Missing"}</span>
-                <span>{check.label}</span>
-              </span>
-            ))}
+          <div className="topbar-actions">
+            <a href="#workspace" className="btn">
+              Open workspace
+            </a>
+            {isAdmin ? (
+              <Link className="btn" href="/ingestion">
+                Admin ingestion
+              </Link>
+            ) : null}
           </div>
         </div>
       </header>
 
       <main className="container">
-        <section className="panel" style={{ marginBottom: "1rem" }}>
-          <p style={{ margin: 0, fontSize: "0.8rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#6b7e81" }}>
-            Open analytics for everyone, account features when you want them
-          </p>
-          <h1 style={{ margin: "0.4rem 0 0.5rem", fontSize: "2rem" }}>F1 Pace Lab</h1>
-          <p style={{ margin: 0, color: "#314144" }}>
-            Explore session data in the browser without logging in. Sign in only when you want personal saved views and shareable analysis presets.
-          </p>
+        <section className="hero-panel">
+          <div className="hero-copy">
+            <span className="eyebrow">From data pipeline to product surface</span>
+            <h1>Turn ingested F1 data into an analysis experience people actually want to use.</h1>
+            <p>
+              F1 Pace Lab now leads with exploration, comparison, and saved analysis. The ingest machinery stays available, but it no longer dominates the front door.
+            </p>
+            <div className="hero-actions">
+              <a href="#workspace" className="btn btn-primary">
+                Start exploring
+              </a>
+              <a href="#accounts" className="btn">
+                See account features
+              </a>
+            </div>
+          </div>
+
+          <div className="hero-side panel">
+            <span className="eyebrow">What the product does</span>
+            <div className="hero-stat-grid">
+              {productStats.map((item) => (
+                <article key={item.label} className="hero-stat-card">
+                  <p>{item.label}</p>
+                  <strong>{item.value}</strong>
+                </article>
+              ))}
+            </div>
+            <p className="hero-note">
+              Public users get the analysis surface. Signed-in users get ownership. Admins get ingestion control.
+            </p>
+          </div>
         </section>
 
-        <SessionExplorer />
-        <ComparisonLab />
-        <CoveragePanel />
-        <AuthPanel />
-        <SavedViewsPanel />
+        <section className="panel narrative-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Product direction</span>
+              <h2>Keep the backend power, change the user story.</h2>
+            </div>
+          </div>
+          <div className="feature-grid">
+            {productPillars.map((pillar) => (
+              <article key={pillar.title} className="feature-card">
+                <h3>{pillar.title}</h3>
+                <p>{pillar.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="workspace" className="section-stack">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Workspace</span>
+              <h2>Explore the data like an app, not a dev console.</h2>
+            </div>
+            <p>The analysis flow starts with session discovery, then moves into pace story, driver comparison, and coverage confidence.</p>
+          </div>
+          <SessionExplorer />
+          <ComparisonLab />
+          <CoveragePanel />
+        </section>
+
+        <section id="accounts" className="section-stack">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Accounts</span>
+              <h2>Optional sign-in, purposeful permissions.</h2>
+            </div>
+            <p>Saved views stay user-owned, while ingestion and operator tooling are reserved for admins.</p>
+          </div>
+          <div className="account-grid">
+            <AuthPanel />
+            <SavedViewsPanel />
+          </div>
+        </section>
       </main>
     </>
   );

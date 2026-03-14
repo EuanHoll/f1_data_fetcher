@@ -119,6 +119,7 @@ services:
     volumes:
       - ../..:/workspace
       - web_node_modules:/workspace/node_modules
+      - web_next:/workspace/apps/web/.next
     depends_on:
       backend:
         condition: service_healthy
@@ -242,5 +243,6 @@ services:
 volumes:
   convex_data_s3:
   web_node_modules:
+  web_next:
   worker_fastf1_cache:
   minio_data:

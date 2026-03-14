@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import { syncIdentityToConvex } from "@/lib/convex-admin";
+import { resolveViewerRole } from "@/lib/authz";
 
 const providers = [] as any[];
 
@@ -48,10 +49,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       try {
+        const role = resolveViewerRole({
+          id: user.id,
+          email: user.email
+        });
+
         await syncIdentityToConvex({
           authSubject: user.id,
           displayName: user.name,
-          email: user.email
+          email: user.email,
+          role
         });
       } catch (error) {
         console.error("Failed to sync identity into Convex", error);
@@ -62,12 +69,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user?.id) {
         token.sub = user.id;
+        token.role = resolveViewerRole({
+          id: user.id,
+          email: user.email
+        });
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
         (session.user as { id?: string }).id = token.sub;
+        (session.user as { role?: "admin" | "user" }).role = (token.role as "admin" | "user" | undefined) ?? "user";
       }
       return session;
     }

@@ -24,15 +24,16 @@ export function AuthPanel() {
 
   if (status === "authenticated") {
     return (
-      <section className="panel" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>Auth</h2>
-        <p style={{ marginTop: 0, color: "#46575a" }}>
-          Signed in as <strong>{data.user?.name ?? "Unknown"}</strong> ({data.user?.email ?? "No email"})
-        </p>
-        <button
-          onClick={() => signOut({ redirect: false })}
-          style={{ border: "1px solid var(--line)", background: "white", borderRadius: 10, padding: "0.45rem 0.7rem", cursor: "pointer" }}
-        >
+      <section className="panel account-panel" style={{ marginBottom: "1rem" }}>
+        <div>
+          <span className="eyebrow">Account</span>
+          <h2>Signed in and ready to save analysis.</h2>
+          <p>
+            <strong>{data.user?.name ?? "Unknown"}</strong> can save private views now.
+            {data.user?.role === "admin" ? " This account also has admin ingestion access." : ""}
+          </p>
+        </div>
+        <button onClick={() => signOut({ redirect: false })} className="btn">
           Sign out
         </button>
       </section>
@@ -40,26 +41,20 @@ export function AuthPanel() {
   }
 
   return (
-    <section className="panel" style={{ marginBottom: "1rem" }}>
-      <h2 style={{ marginTop: 0 }}>Auth</h2>
-      <p style={{ marginTop: 0, color: "#46575a" }}>
-        Anyone can browse the site. Sign in only if you want saved views and account-specific features.
-      </p>
-      <p style={{ marginTop: "-0.35rem", color: "#66797d", fontSize: "0.92rem" }}>
-        For production, add OAuth providers (for example GitHub) via environment variables.
-      </p>
+    <section className="panel account-panel" style={{ marginBottom: "1rem" }}>
+      <div>
+        <span className="eyebrow">Account</span>
+        <h2>Browse freely, sign in when you want ownership.</h2>
+        <p>Accounts unlock saved views, personal workspaces, and admin-only ingestion when the user is allowlisted.</p>
+      </div>
       <form onSubmit={onSignIn} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Enter name"
-          style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "0.5rem 0.6rem", minWidth: 220 }}
+          className="text-input"
         />
-        <button
-          type="submit"
-          disabled={pending}
-          style={{ border: "none", background: "var(--accent)", color: "white", borderRadius: 10, padding: "0.5rem 0.7rem", cursor: "pointer" }}
-        >
+        <button type="submit" disabled={pending} className="btn btn-primary">
           {pending ? "Signing in..." : "Sign in"}
         </button>
       </form>
