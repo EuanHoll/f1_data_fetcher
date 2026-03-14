@@ -1,6 +1,111 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+async function resolveSessionByRef(ctx: any, ref: { year: number; round: number; sessionCode: string }) {
+  const season = await ctx.db
+    .query("seasons")
+    .withIndex("by_year", (q: any) => q.eq("year", ref.year))
+    .first();
+  if (!season) {
+    return null;
+  }
+
+  const event = await ctx.db
+    .query("events")
+    .withIndex("by_season_round", (q: any) => q.eq("seasonId", season._id).eq("round", ref.round))
+    .first();
+  if (!event) {
+    return null;
+  }
+
+  return await ctx.db
+    .query("sessions")
+    .withIndex("by_event_session_code", (q: any) => q.eq("eventId", event._id).eq("sessionCode", ref.sessionCode))
+    .first();
+}
+
+const sessionRef = v.object({
+  year: v.number(),
+  round: v.number(),
+  sessionCode: v.string()
+});
+
+export const markQueuedSessions = mutation({
+  args: {
+    items: v.array(
+      v.object({
+        jobId: v.string(),
+        queuedAt: v.number(),
+        queuePosition: v.optional(v.number()),
+        session: sessionRef
+      })
+    )
+  },
+  handler: async (ctx, args) => {
+    let updated = 0;
+    for (const item of args.items) {
+      const session = await resolveSessionByRef(ctx, item.session);
+      if (!session) {
+        continue;
+      }
+      await ctx.db.patch(session._id, {
+        queueStatus: "queued",
+        activeJobId: item.jobId,
+        lastQueuedAt: item.queuedAt,
+        lastQueueError: undefined
+      });
+      updated += 1;
+    }
+    return { updated };
+  }
+});
+
+export const updateQueueState = mutation({
+  args: {
+    session: sessionRef,
+    jobId: v.string(),
+    status: v.union(v.literal("queued"), v.literal("running"), v.literal("succeeded"), v.literal("failed")),
+    queuedAt: v.optional(v.number()),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    error: v.optional(v.string())
+  },
+  handler: async (ctx, args) => {
+    const session = await resolveSessionByRef(ctx, args.session);
+    if (!session) {
+      return { updated: false };
+    }
+
+    if (args.status === "queued") {
+      await ctx.db.patch(session._id, {
+        queueStatus: "queued",
+        activeJobId: args.jobId,
+        lastQueuedAt: args.queuedAt,
+        lastQueueError: undefined
+      });
+      return { updated: true };
+    }
+
+    if (args.status === "running") {
+      await ctx.db.patch(session._id, {
+        queueStatus: "running",
+        activeJobId: args.jobId,
+        lastStartedAt: args.startedAt,
+        lastQueueError: undefined
+      });
+      return { updated: true };
+    }
+
+    await ctx.db.patch(session._id, {
+      queueStatus: "idle",
+      activeJobId: undefined,
+      lastCompletedAt: args.completedAt,
+      lastQueueError: args.status === "failed" ? args.error : undefined
+    });
+    return { updated: true };
+  }
+});
+
 export const getExplorerData = query({
   args: {
     limit: v.optional(v.number()),
@@ -34,6 +139,12 @@ export const getExplorerData = query({
           sessionCode: session.sessionCode,
           sessionName: session.sessionName,
           ingestStatus: session.ingestStatus,
+          queueStatus: session.queueStatus ?? "idle",
+          activeJobId: session.activeJobId ?? null,
+          lastQueuedAt: session.lastQueuedAt ?? null,
+          lastStartedAt: session.lastStartedAt ?? null,
+          lastCompletedAt: session.lastCompletedAt ?? null,
+          lastQueueError: session.lastQueueError ?? null,
           startsAt: session.startsAt ?? null,
           lastFetchedAt: session.lastFetchedAt ?? null,
           cacheExpiresAt: session.cacheExpiresAt ?? null,
@@ -105,6 +216,8 @@ export const getExplorerData = query({
         totalSessions: filtered.length,
         readySessions: filtered.filter((r) => r.ingestStatus === "ready").length,
         pendingSessions: pendingRows.length,
+        queuedSessions: filtered.filter((r) => r.queueStatus === "queued").length,
+        runningSessions: filtered.filter((r) => r.queueStatus === "running").length,
         failedSessions: failedRows.length,
         lastSyncAt: lastRun?.completedAt ?? null,
         ingestRunStatus: lastRun?.status ?? "none"

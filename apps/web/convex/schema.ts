@@ -32,12 +32,19 @@ export default defineSchema({
     sessionName: v.string(),
     startsAt: v.optional(v.number()),
     ingestStatus: v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")),
+    queueStatus: v.optional(v.union(v.literal("idle"), v.literal("queued"), v.literal("running"))),
+    activeJobId: v.optional(v.string()),
+    lastQueuedAt: v.optional(v.number()),
+    lastStartedAt: v.optional(v.number()),
+    lastCompletedAt: v.optional(v.number()),
+    lastQueueError: v.optional(v.string()),
     lastFetchedAt: v.optional(v.number()),
     cacheExpiresAt: v.optional(v.number()),
     source: v.optional(v.string())
   })
     .index("by_event", ["eventId"])
     .index("by_ingest_status", ["ingestStatus"])
+    .index("by_queue_status", ["queueStatus"])
     .index("by_event_session_code", ["eventId", "sessionCode"]),
 
   drivers: defineTable({

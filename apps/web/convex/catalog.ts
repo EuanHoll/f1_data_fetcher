@@ -80,7 +80,8 @@ export const upsertCatalogYear = mutation({
           await ctx.db.patch(existingSession._id, {
             sessionName: sessionInput.sessionName,
             startsAt: sessionInput.startsAt,
-            source: args.source
+            source: args.source,
+            ...(existingSession.queueStatus ? {} : { queueStatus: "idle" as const })
           });
           sessionsUpdated += 1;
         } else {
@@ -90,6 +91,7 @@ export const upsertCatalogYear = mutation({
             sessionName: sessionInput.sessionName,
             startsAt: sessionInput.startsAt,
             ingestStatus: "pending",
+            queueStatus: "idle",
             source: args.source
           });
           sessionsInserted += 1;

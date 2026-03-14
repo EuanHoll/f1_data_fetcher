@@ -11,6 +11,7 @@ It is intended as the first infrastructure step before building the Next.js fron
 - Convex dashboard on `http://127.0.0.1:6791`
 - Next.js web app on `http://127.0.0.1:3000`
 - Python ingestion control API on `http://127.0.0.1:8080`
+- Three parallel ingestion queue consumers for FastF1 session jobs
 - Convex function sync watcher (`convex-dev` service) that auto-creates/updates schema and functions
 - MinIO S3 API on `http://127.0.0.1:9000`
 - MinIO console on `http://127.0.0.1:9001`

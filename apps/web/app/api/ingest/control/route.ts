@@ -62,6 +62,37 @@ async function enqueueOnWorker(
   return result;
 }
 
+async function enqueueSessionsIndividually(
+  workerUrl: string,
+  workerApiKey: string | undefined,
+  baseUrl: string,
+  ingestApiKey: string,
+  sessions: Array<{ year: number; round: number; sessionCode: string }>,
+  concurrency = 4
+) {
+  const results: Array<{
+    session: { year: number; round: number; sessionCode: string };
+    result: Record<string, unknown>;
+  }> = [];
+
+  for (let index = 0; index < sessions.length; index += concurrency) {
+    const chunk = sessions.slice(index, index + concurrency);
+    const chunkResults = await Promise.all(
+      chunk.map(async (session) => ({
+        session,
+        result: await enqueueOnWorker(workerUrl, workerApiKey, {
+          baseUrl,
+          ingestApiKey,
+          sessions: [session]
+        })
+      }))
+    );
+    results.push(...chunkResults);
+  }
+
+  return results;
+}
+
 function normalizeSessions(input: unknown) {
   if (!Array.isArray(input)) {
     return [] as Array<{ year: number; round: number; sessionCode: string }>;
@@ -155,6 +186,16 @@ export async function POST(request: Request) {
           queuePosition: typeof workerResult.queueSize === "number" ? Number(workerResult.queueSize) : undefined,
           requestedSessionsJson: JSON.stringify([{ year, round, sessionCode }])
         });
+        await client.mutation(api.sessions.markQueuedSessions, {
+          items: [
+            {
+              jobId: String(workerResult.jobId),
+              queuedAt: Date.now(),
+              queuePosition: typeof workerResult.queueSize === "number" ? Number(workerResult.queueSize) : undefined,
+              session: { year, round, sessionCode }
+            }
+          ]
+        });
       }
 
       return NextResponse.json({ ok: true, queued: 1, ...workerResult });
@@ -176,23 +217,42 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true, queued: 0, message: "No matching pending sessions." });
       }
 
-      const workerResult = await enqueueOnWorker(context.workerUrl, context.workerApiKey, {
-        baseUrl: context.baseUrl,
-        ingestApiKey: context.apiKey,
+      const queuedJobs = await enqueueSessionsIndividually(
+        context.workerUrl,
+        context.workerApiKey,
+        context.baseUrl,
+        context.apiKey,
         sessions
+      );
+
+      const queuedAt = Date.now();
+      const queuedItems = queuedJobs
+        .filter((item) => item.result.jobId)
+        .map((item) => ({
+          jobId: String(item.result.jobId),
+          createdAt: queuedAt,
+          total: 1,
+          queuePosition: typeof item.result.queueSize === "number" ? Number(item.result.queueSize) : undefined,
+          requestedSessionsJson: JSON.stringify([item.session])
+        }));
+
+      await client.mutation(api.workerJobs.recordQueuedJobs, {
+        jobs: queuedItems
+      });
+      await client.mutation(api.sessions.markQueuedSessions, {
+        items: queuedItems.map((item) => ({
+          jobId: item.jobId,
+          queuedAt,
+          queuePosition: item.queuePosition,
+          session: JSON.parse(item.requestedSessionsJson ?? "[]")[0]
+        }))
       });
 
-      if (workerResult.jobId) {
-        await client.mutation(api.workerJobs.recordQueuedJob, {
-          jobId: String(workerResult.jobId),
-          createdAt: Date.now(),
-          total: sessions.length,
-          queuePosition: typeof workerResult.queueSize === "number" ? Number(workerResult.queueSize) : undefined,
-          requestedSessionsJson: JSON.stringify(sessions)
-        });
-      }
-
-      return NextResponse.json({ ok: true, queued: sessions.length, ...workerResult });
+      return NextResponse.json({
+        ok: true,
+        queued: queuedJobs.length,
+        jobIds: queuedJobs.map((item) => item.result.jobId).filter(Boolean)
+      });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

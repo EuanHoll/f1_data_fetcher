@@ -17,7 +17,18 @@ type WorkerJob = {
   failed: number;
   queuePosition: number | null;
   lastError: string | null;
+  requestedSessions?: Array<{ year: number; round: number; sessionCode: string }>;
 };
+
+function queueColor(status: "idle" | "queued" | "running") {
+  if (status === "running") {
+    return "#1a6fb3";
+  }
+  if (status === "queued") {
+    return "var(--warn)";
+  }
+  return "#6b7e94";
+}
 
 function formatDate(value: number | null) {
   if (!value) {
@@ -79,8 +90,7 @@ export function IngestionControlPanel() {
       }
 
       const queued = Number(result.queued ?? 0);
-      const jobId = result.jobId ? ` job ${String(result.jobId)}` : "";
-      setMessage(`Queued ${queued} session(s)${jobId}.`);
+      setMessage(`Queued ${queued} session job(s).`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unknown ingest control error");
     } finally {
@@ -137,8 +147,12 @@ export function IngestionControlPanel() {
             </p>
           </article>
           <article className="kpi-card">
-            <p className="kpi-label">Running Jobs</p>
-            <p className="kpi-value">{workerJobs.filter((job) => job.status === "running" || job.status === "queued").length}</p>
+            <p className="kpi-label">Queued (Filtered)</p>
+            <p className="kpi-value" style={{ color: "var(--warn)" }}>{(data.stats as any).queuedSessions ?? 0}</p>
+          </article>
+          <article className="kpi-card">
+            <p className="kpi-label">Running (Filtered)</p>
+            <p className="kpi-value" style={{ color: "#1a6fb3" }}>{(data.stats as any).runningSessions ?? 0}</p>
           </article>
           <article className="kpi-card">
             <p className="kpi-label">Ready (Filtered)</p>
@@ -211,6 +225,7 @@ export function IngestionControlPanel() {
                   <th>Event</th>
                   <th>Session</th>
                   <th>Start</th>
+                  <th>Queue</th>
                   <th>Last Fetch</th>
                   <th>Action</th>
                 </tr>
@@ -225,6 +240,11 @@ export function IngestionControlPanel() {
                       {row.sessionName} ({row.sessionCode})
                     </td>
                     <td className="mono">{formatDate(row.startsAt)}</td>
+                    <td>
+                      <span className="pill" style={{ color: queueColor((row as any).queueStatus ?? "idle") }}>
+                        {(row as any).queueStatus ?? "idle"}
+                      </span>
+                    </td>
                     <td className="mono">{formatDate(row.lastFetchedAt ?? null)}</td>
                     <td>
                       <button
@@ -232,7 +252,9 @@ export function IngestionControlPanel() {
                         disabled={
                           isBusy ||
                           row.seasonYear === null ||
-                          row.round === null
+                          row.round === null ||
+                          (row as any).queueStatus === "queued" ||
+                          (row as any).queueStatus === "running"
                         }
                         onClick={() =>
                           void postControl({
@@ -250,7 +272,7 @@ export function IngestionControlPanel() {
                 ))}
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ color: "#6b7e94" }}>
+                    <td colSpan={8} style={{ color: "#6b7e94" }}>
                       No pending sessions for this filter.
                     </td>
                   </tr>
@@ -278,9 +300,10 @@ export function IngestionControlPanel() {
           <article className="panel">
             <h3 style={{ marginTop: 0 }}>Worker Jobs</h3>
             <div className="table-wrap">
-              <table className="table table-compact" style={{ minWidth: 560 }}>
+              <table className="table table-compact" style={{ minWidth: 760 }}>
                 <thead>
                   <tr>
+                    <th>Session</th>
                     <th>Status</th>
                     <th>Progress</th>
                     <th>Started</th>
@@ -290,6 +313,11 @@ export function IngestionControlPanel() {
                 <tbody>
                   {workerJobs.map((job) => (
                     <tr key={job.id}>
+                      <td className="mono">
+                        {job.requestedSessions?.[0]
+                          ? `${job.requestedSessions[0].year} R${job.requestedSessions[0].round} ${job.requestedSessions[0].sessionCode}`
+                          : "-"}
+                      </td>
                       <td>
                         <span className="pill" style={{ color: job.status === "succeeded" ? "var(--ok)" : job.status === "failed" ? "#9a2f2f" : "var(--warn)" }}>
                           {job.status}
@@ -306,7 +334,7 @@ export function IngestionControlPanel() {
                   ))}
                   {workerJobs.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ color: "#6b7e94" }}>
+                      <td colSpan={5} style={{ color: "#6b7e94" }}>
                         No worker jobs recorded yet.
                       </td>
                     </tr>

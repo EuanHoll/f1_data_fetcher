@@ -195,6 +195,54 @@ services:
       web:
         condition: service_started
 
+  worker-runner-2:
+    build:
+      context: ../..
+      dockerfile: apps/worker/Dockerfile
+    command: ["/usr/local/bin/uv", "run", "python", "-m", "app.workers.runner"]
+    environment:
+      - INGEST_API_KEY=${INGEST_API_KEY}
+      - WORKER_API_KEY=${WORKER_API_KEY}
+      - INGEST_BASE_URL=${INGEST_BASE_URL:-http://web:3000}
+      - FASTF1_CACHE_DIR=/data/fastf1-cache
+      - VALKEY_URL=${VALKEY_URL:-redis://valkey:6379/0}
+      - RQ_QUEUE_NAME=${RQ_QUEUE_NAME:-ingest}
+    volumes:
+      - worker_fastf1_cache:/data/fastf1-cache
+    depends_on:
+      backend:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+  worker-runner-3:
+    build:
+      context: ../..
+      dockerfile: apps/worker/Dockerfile
+    command: ["/usr/local/bin/uv", "run", "python", "-m", "app.workers.runner"]
+    environment:
+      - INGEST_API_KEY=${INGEST_API_KEY}
+      - WORKER_API_KEY=${WORKER_API_KEY}
+      - INGEST_BASE_URL=${INGEST_BASE_URL:-http://web:3000}
+      - FASTF1_CACHE_DIR=/data/fastf1-cache
+      - VALKEY_URL=${VALKEY_URL:-redis://valkey:6379/0}
+      - RQ_QUEUE_NAME=${RQ_QUEUE_NAME:-ingest}
+    volumes:
+      - worker_fastf1_cache:/data/fastf1-cache
+    depends_on:
+      backend:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      web:
+        condition: service_started
+
   worker-bootstrap:
     build:
       context: ../..

@@ -34,6 +34,8 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as Record<string, unknown>;
     const client = getConvexAdminClient();
+    const requestedSessions = body.requestedSessionsJson ? JSON.parse(String(body.requestedSessionsJson)) : [];
+    const session = Array.isArray(requestedSessions) ? requestedSessions[0] : null;
 
     await client.mutation(api.workerJobs.upsertJobStatus, {
       jobId: String(body.jobId ?? ""),
@@ -49,6 +51,22 @@ export async function POST(request: Request) {
       requestedSessionsJson: body.requestedSessionsJson ? String(body.requestedSessionsJson) : undefined,
       resultsJson: body.resultsJson ? String(body.resultsJson) : undefined
     });
+
+    if (session && typeof session === "object") {
+      await client.mutation(api.sessions.updateQueueState, {
+        session: {
+          year: Number((session as any).year),
+          round: Number((session as any).round),
+          sessionCode: String((session as any).sessionCode ?? "")
+        },
+        jobId: String(body.jobId ?? ""),
+        status: body.status as "queued" | "running" | "succeeded" | "failed",
+        queuedAt: typeof body.createdAt === "number" ? body.createdAt : undefined,
+        startedAt: typeof body.startedAt === "number" ? body.startedAt : undefined,
+        completedAt: typeof body.completedAt === "number" ? body.completedAt : undefined,
+        error: body.lastError ? String(body.lastError) : undefined
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

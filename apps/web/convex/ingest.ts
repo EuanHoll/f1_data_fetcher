@@ -90,6 +90,7 @@ export const upsertSessionContext = mutation({
         sessionName: args.sessionName,
         startsAt: args.sessionStartsAt,
         ingestStatus: "pending",
+        queueStatus: "running",
         source: args.source,
         lastFetchedAt: now,
         cacheExpiresAt: now + computeTtlMs(args.sessionStartsAt)
@@ -100,6 +101,7 @@ export const upsertSessionContext = mutation({
         sessionName: args.sessionName,
         startsAt: args.sessionStartsAt,
         ingestStatus: "pending",
+        queueStatus: "running",
         source: args.source,
         lastFetchedAt: now,
         cacheExpiresAt: now + computeTtlMs(args.sessionStartsAt)
@@ -198,6 +200,10 @@ export const finalizeSessionIngestion = mutation({
 
     await ctx.db.patch(args.sessionId, {
       ingestStatus: args.success ? "ready" : "failed",
+      queueStatus: "idle",
+      activeJobId: undefined,
+      lastCompletedAt: now,
+      lastQueueError: args.success ? undefined : args.message,
       lastFetchedAt: now,
       cacheExpiresAt: now + ttlMs
     });
