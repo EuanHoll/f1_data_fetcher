@@ -175,12 +175,13 @@ export const getExplorerData = query({
     });
 
     const pendingRows = filtered.filter((row) => row.ingestStatus === "pending");
+    const pendingIdleRows = pendingRows.filter((row) => row.queueStatus === "idle");
     const failedRows = filtered.filter((row) => row.ingestStatus === "failed");
-    const pendingNeverAttempted = pendingRows.filter((row) => row.lastFetchedAt === null).length;
-    const pendingInProgressOrRetried = pendingRows.length - pendingNeverAttempted;
-    const pendingCacheExpired = pendingRows.filter((row) => row.cacheExpiresAt !== null && row.cacheExpiresAt < now).length;
+    const pendingNeverAttempted = pendingIdleRows.filter((row) => row.lastFetchedAt === null).length;
+    const pendingInProgressOrRetried = pendingIdleRows.length - pendingNeverAttempted;
+    const pendingCacheExpired = pendingIdleRows.filter((row) => row.cacheExpiresAt !== null && row.cacheExpiresAt < now).length;
 
-    const pendingPreview = [...pendingRows]
+    const pendingPreview = [...pendingIdleRows]
       .sort((a, b) => (a.startsAt ?? 0) - (b.startsAt ?? 0))
       .slice(0, 8)
       .map((row) => ({
@@ -197,6 +198,7 @@ export const getExplorerData = query({
       }));
 
     const rows = filtered.slice(offset, offset + limit);
+    const pendingPageRows = pendingIdleRows.slice(offset, offset + limit);
 
     return {
       rows,
@@ -212,10 +214,18 @@ export const getExplorerData = query({
         hasNextPage: offset + limit < filtered.length,
         hasPrevPage: offset > 0
       },
+      pendingPagination: {
+        total: pendingIdleRows.length,
+        offset,
+        limit,
+        hasNextPage: offset + limit < pendingIdleRows.length,
+        hasPrevPage: offset > 0
+      },
+      pendingRows: pendingPageRows,
       stats: {
         totalSessions: filtered.length,
         readySessions: filtered.filter((r) => r.ingestStatus === "ready").length,
-        pendingSessions: pendingRows.length,
+        pendingSessions: pendingIdleRows.length,
         queuedSessions: filtered.filter((r) => r.queueStatus === "queued").length,
         runningSessions: filtered.filter((r) => r.queueStatus === "running").length,
         failedSessions: failedRows.length,

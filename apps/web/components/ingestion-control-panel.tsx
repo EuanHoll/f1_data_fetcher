@@ -58,7 +58,7 @@ export function IngestionControlPanel() {
     setCurrentPage(0);
   }, [selectedSeason, selectedSessionCode]);
 
-  const rows = useMemo(() => (data?.rows ?? []).filter((row) => row.ingestStatus === "pending"), [data]);
+  const rows = useMemo(() => data?.pendingRows ?? [], [data]);
   const pendingRowsForBatch = useMemo(
     () => rows.map((row) => ({ year: row.seasonYear, round: row.round, sessionCode: row.sessionCode })).filter((row) => row.year !== null && row.round !== null),
     [rows]
@@ -283,13 +283,15 @@ export function IngestionControlPanel() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.8rem", gap: "0.6rem", flexWrap: "wrap" }}>
             <span className="mono" style={{ color: "#5f7189", fontSize: "0.88rem" }}>
-              showing {data.pagination.offset + 1}-{Math.min(data.pagination.offset + data.pagination.limit, data.pagination.total)} of {data.pagination.total}
+              {data.pendingPagination.total === 0
+                ? "showing 0-0 of 0"
+                : `showing ${data.pendingPagination.offset + 1}-${Math.min(data.pendingPagination.offset + data.pendingPagination.limit, data.pendingPagination.total)} of ${data.pendingPagination.total}`}
             </span>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button className="btn" disabled={!data.pagination.hasPrevPage || isBusy} onClick={() => setCurrentPage((page) => Math.max(page - 1, 0))}>
+              <button className="btn" disabled={!data.pendingPagination.hasPrevPage || isBusy} onClick={() => setCurrentPage((page) => Math.max(page - 1, 0))}>
                 Previous
               </button>
-              <button className="btn" disabled={!data.pagination.hasNextPage || isBusy} onClick={() => setCurrentPage((page) => page + 1)}>
+              <button className="btn" disabled={!data.pendingPagination.hasNextPage || isBusy} onClick={() => setCurrentPage((page) => page + 1)}>
                 Next
               </button>
             </div>

@@ -137,6 +137,9 @@ async function getFilteredPendingSessions(
       if (row.ingestStatus !== "pending") {
         continue;
       }
+      if (row.queueStatus === "queued" || row.queueStatus === "running") {
+        continue;
+      }
       if (row.seasonYear === null || row.round === null) {
         continue;
       }
