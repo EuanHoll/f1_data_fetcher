@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { ConvexClientProvider } from "@/components/convex-provider";
-import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
+import { Roboto_Condensed, Fira_Code } from "next/font/google";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const robotoCondensed = Roboto_Condensed({
   subsets: ["latin"],
-  variable: "--font-space"
+  variable: "--font-heading"
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
+const firaCode = Fira_Code({
   subsets: ["latin"],
   weight: ["400", "600"],
   variable: "--font-mono"
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}>
+      <body className={`${robotoCondensed.variable} ${firaCode.variable}`}>
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>

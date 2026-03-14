@@ -6,6 +6,28 @@ import { api } from "@/convex/_generated/api";
 
 const palette = ["#1d4ed8", "#c2410c", "#0f766e", "#7c3aed", "#be123c", "#4d7c0f", "#0369a1", "#b45309"];
 const dashPatterns = ["none", "10 6", "3 5", "14 5 3 5", "2 4", "16 6"];
+const teamByDriverCode: Record<string, string> = {
+  ALB: "Williams",
+  ALO: "Aston Martin",
+  ANT: "Mercedes",
+  BEA: "Haas",
+  BOT: "Kick Sauber",
+  COL: "Alpine",
+  GAS: "Alpine",
+  HAD: "RB",
+  HAM: "Ferrari",
+  HUL: "Kick Sauber",
+  LAW: "RB",
+  LEC: "Ferrari",
+  NOR: "McLaren",
+  OCO: "Haas",
+  PIA: "McLaren",
+  RUS: "Mercedes",
+  SAI: "Williams",
+  STR: "Aston Martin",
+  TSU: "Red Bull",
+  VER: "Red Bull"
+};
 
 function formatLapMs(ms: number | null) {
   if (ms === null) {
@@ -31,11 +53,19 @@ function displayDriverLabel(driverCode: string, driverName?: string | null) {
   return driverName ? `${driverName} (${driverCode})` : driverCode;
 }
 
+function resolveTeamName(driverCode: string, teamName?: string | null) {
+  return teamName ?? teamByDriverCode[driverCode] ?? "Team data pending";
+}
+
 export function ComparisonLab() {
   const [seasonYears, setSeasonYears] = useState<number[]>([]);
   const [sessionCode, setSessionCode] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState<string>("all");
   const [seasonMenuOpen, setSeasonMenuOpen] = useState(false);
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const [locationSearch, setLocationSearch] = useState("");
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const [chartMode, setChartMode] = useState<"absolute" | "delta">("absolute");
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const [selectedDriverCodes, setSelectedDriverCodes] = useState<string[]>([]);
@@ -44,6 +74,7 @@ export function ComparisonLab() {
   const hasAutoSelectedSessions = useRef(false);
   const hasAutoSelectedDrivers = useRef(false);
   const seasonMenuRef = useRef<HTMLDivElement | null>(null);
+  const locationMenuRef = useRef<HTMLDivElement | null>(null);
   const lastReadySessionsRef = useRef<typeof readySessions>();
 
   const readySessions = useQuery(api.sessions.getReadySessionsForCompare, {
@@ -70,26 +101,62 @@ export function ComparisonLab() {
       if (!seasonMenuRef.current?.contains(event.target as Node)) {
         setSeasonMenuOpen(false);
       }
+      if (!locationMenuRef.current?.contains(event.target as Node)) {
+        setLocationMenuOpen(false);
+      }
     }
 
-    if (seasonMenuOpen) {
+    if (seasonMenuOpen || locationMenuOpen) {
       window.addEventListener("mousedown", onPointerDown);
     }
 
     return () => window.removeEventListener("mousedown", onPointerDown);
-  }, [seasonMenuOpen]);
+  }, [locationMenuOpen, seasonMenuOpen]);
 
   const locationOptions = useMemo(() => {
     return Array.from(new Set((resolvedReadySessions?.rows ?? []).map((row) => row.location).filter((value): value is string => Boolean(value)))).sort();
   }, [resolvedReadySessions]);
 
+  const filteredLocationOptions = useMemo(() => {
+    const needle = locationSearch.trim().toLowerCase();
+    if (!needle) {
+      return locationOptions;
+    }
+    return locationOptions.filter((track) => track.toLowerCase().includes(needle));
+  }, [locationOptions, locationSearch]);
+
+  const locationSummary = location === "all" ? "All tracks" : location;
+
   const visibleSessions = useMemo(() => {
     return (resolvedReadySessions?.rows ?? []).filter((row) => (location === "all" ? true : row.location === location));
   }, [location, resolvedReadySessions]);
 
+  const filteredSessions = useMemo(() => {
+    const needle = sessionSearch.trim().toLowerCase();
+    if (!needle) {
+      return visibleSessions;
+    }
+
+    return visibleSessions.filter((session) => {
+      const haystack = [session.eventName, session.location, session.sessionCode, session.sessionName, String(session.seasonYear ?? "")]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(needle);
+    });
+  }, [sessionSearch, visibleSessions]);
+
+  const displayedSessions = useMemo(() => {
+    return showAllSessions ? filteredSessions : filteredSessions.slice(0, 18);
+  }, [filteredSessions, showAllSessions]);
+
   useEffect(() => {
     setSelectedSessionIds((current) => current.filter((id) => visibleSessions.some((session) => String(session.id) === id)));
   }, [visibleSessions]);
+
+  useEffect(() => {
+    setShowAllSessions(false);
+  }, [location, seasonYears, sessionCode, sessionSearch]);
 
   useEffect(() => {
     if (hasAutoSelectedSessions.current || visibleSessions.length === 0 || selectedSessionIds.length > 0) {
@@ -129,11 +196,11 @@ export function ComparisonLab() {
   );
 
   const selectedSessions = useMemo(() => {
-    const order = new Map(visibleSessions.map((session, index) => [String(session.id), index]));
-    return visibleSessions
+    const order = new Map(filteredSessions.map((session, index) => [String(session.id), index]));
+    return filteredSessions
       .filter((session) => selectedSessionIds.includes(String(session.id)))
       .sort((a, b) => (order.get(String(a.id)) ?? 0) - (order.get(String(b.id)) ?? 0));
-  }, [selectedSessionIds, visibleSessions]);
+  }, [filteredSessions, selectedSessionIds]);
 
   const selectedSessionCount = selectedSessionIds.length;
   const selectedDriverCount = selectedDriverCodes.length;
@@ -311,14 +378,46 @@ export function ComparisonLab() {
           ))}
         </select>
 
-        <select className="select" value={location} onChange={(event) => setLocation(event.target.value)}>
-          <option value="all">All tracks</option>
-          {locationOptions.map((track) => (
-            <option key={track} value={track}>
-              {track}
-            </option>
-          ))}
-        </select>
+        <div className="compare-dropdown" ref={locationMenuRef}>
+          <button type="button" className="select compare-dropdown-trigger" onClick={() => setLocationMenuOpen((open) => !open)}>
+            <span>{locationSummary}</span>
+            <span className="mono">{locationMenuOpen ? "-" : "+"}</span>
+          </button>
+          {locationMenuOpen ? (
+            <div className="compare-dropdown-menu compare-dropdown-menu-wide">
+              <input
+                value={locationSearch}
+                onChange={(event) => setLocationSearch(event.target.value)}
+                className="tech-input compare-filter-search"
+                placeholder="Search track"
+              />
+              <button
+                type="button"
+                className="compare-dropdown-action"
+                onClick={() => {
+                  setLocation("all");
+                  setLocationMenuOpen(false);
+                }}
+              >
+                Show all tracks
+              </button>
+              {filteredLocationOptions.map((track) => (
+                <button
+                  key={track}
+                  type="button"
+                  className={`compare-dropdown-action ${location === track ? "is-active" : ""}`}
+                  onClick={() => {
+                    setLocation(track);
+                    setLocationMenuOpen(false);
+                  }}
+                >
+                  {track}
+                </button>
+              ))}
+              {filteredLocationOptions.length === 0 ? <div className="compare-dropdown-empty">No matching tracks.</div> : null}
+            </div>
+          ) : null}
+        </div>
 
         <div className="select mono compare-summary-chip">sessions: {selectedSessionCount}</div>
         <div className="select mono compare-summary-chip">drivers: {selectedDriverCount}</div>
@@ -348,25 +447,92 @@ export function ComparisonLab() {
             Filter to one track and one session type to build a same-circuit comparison across seasons.
           </p>
 
-          <div className="compare-chip-list">
-            {visibleSessions.map((session) => {
-              const selected = selectedSessionIds.includes(String(session.id));
-              return (
+          <div className="compare-session-toolbar">
+            <input
+              value={sessionSearch}
+              onChange={(event) => setSessionSearch(event.target.value)}
+              className="tech-input"
+              placeholder="Search year, event, track, or session code"
+            />
+            <div className="compare-session-meta mono">
+              showing {displayedSessions.length} of {filteredSessions.length}
+            </div>
+          </div>
+
+          {selectedSessions.length > 0 ? (
+            <div className="compare-selected-strip">
+              {selectedSessions.map((session) => (
                 <button
-                  key={String(session.id)}
+                  key={`selected-${String(session.id)}`}
                   type="button"
-                  className={`compare-chip ${selected ? "is-active" : ""}`}
-                  onClick={() => setSelectedSessionIds((current) => toggleValue(current, String(session.id)))}
+                  className="compare-selected-pill"
+                  onClick={() => setSelectedSessionIds((current) => current.filter((id) => id !== String(session.id)))}
                 >
                   <strong>
                     {session.seasonYear ?? "-"} {session.sessionCode}
                   </strong>
                   <span>{session.eventName}</span>
-                  <span>{session.location ?? "Track unknown"}</span>
                 </button>
-              );
-            })}
+              ))}
+            </div>
+          ) : null}
+
+          <div className="compare-session-table-shell">
+            <div className="table-wrap">
+              <table className="table table-compact compare-session-table" style={{ minWidth: 680 }}>
+                <thead>
+                  <tr>
+                    <th>Select</th>
+                    <th>Season</th>
+                    <th>Session</th>
+                    <th>Event</th>
+                    <th>Track</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedSessions.map((session) => {
+                    const selected = selectedSessionIds.includes(String(session.id));
+                    return (
+                      <tr key={String(session.id)} className={selected ? "is-selected" : ""}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => setSelectedSessionIds((current) => toggleValue(current, String(session.id)))}
+                          />
+                        </td>
+                        <td>{session.seasonYear ?? "-"}</td>
+                        <td>
+                          <strong>{session.sessionCode}</strong>
+                          <div style={{ color: "#6b7e81", fontSize: "0.82rem" }}>{session.sessionName}</div>
+                        </td>
+                        <td>{session.eventName}</td>
+                        <td>{session.location ?? "Track unknown"}</td>
+                      </tr>
+                    );
+                  })}
+                  {displayedSessions.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ color: "#6b7e94" }}>
+                        No sessions match the current filters.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          {filteredSessions.length > 18 ? (
+            <div className="compare-session-footer">
+              <span className="mono compare-session-meta">
+                {showAllSessions ? `Showing all ${filteredSessions.length} matching sessions` : `Large result set detected - previewing first 18 sessions`}
+              </span>
+              <button className="btn" onClick={() => setShowAllSessions((current) => !current)}>
+                {showAllSessions ? "Show fewer" : "Show all"}
+              </button>
+            </div>
+          ) : null}
         </article>
 
         <article className="panel compare-builder-card">
@@ -400,7 +566,7 @@ export function ComparisonLab() {
                   onClick={() => setSelectedDriverCodes((current) => toggleValue(current, driver.driverCode))}
                 >
                   <strong>{displayDriverLabel(driver.driverCode, driver.driverName)}</strong>
-                  <span>{driver.teamName ?? "Team unknown"}</span>
+                    <span>{resolveTeamName(driver.driverCode, driver.teamName)}</span>
                   <span>{driver.sessionCount} session(s)</span>
                   <span>{driver.totalLaps} laps</span>
                 </button>
@@ -575,7 +741,7 @@ export function ComparisonLab() {
                       <tr key={row.driverCode}>
                         <td>
                           <strong>{displayDriverLabel(row.driverCode, row.driverName)}</strong>
-                          <div style={{ color: "#6b7e81", fontSize: "0.82rem" }}>{row.teamName ?? "Team unknown"}</div>
+                          <div style={{ color: "#6b7e81", fontSize: "0.82rem" }}>{resolveTeamName(row.driverCode, row.teamName)}</div>
                         </td>
                         <td>{row.sessionCount}</td>
                         <td>{row.totalLaps}</td>
@@ -631,7 +797,7 @@ export function ComparisonLab() {
                     </td>
                     <td>
                       <strong>{displayDriverLabel(row.driverCode, row.driverName)}</strong>
-                      <div style={{ color: "#6b7e81", fontSize: "0.82rem" }}>{row.teamName ?? "Team unknown"}</div>
+                      <div style={{ color: "#6b7e81", fontSize: "0.82rem" }}>{resolveTeamName(row.driverCode, row.teamName)}</div>
                     </td>
                     <td>{row.lapCount}</td>
                     <td className="mono">{formatLapMs(row.bestLapMs)}</td>

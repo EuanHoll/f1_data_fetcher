@@ -245,11 +245,11 @@ export function SessionExplorer() {
             ))}
         </select>
 
-        <div className="select mono" style={{ display: "grid", alignItems: "center", color: "#5f6e88" }}>
-          page rows: {rows.length}
+        <div className="select mono compare-summary-chip" style={{ display: "grid", alignItems: "center", color: "#5f6e88" }}>
+          visible page set: {rows.length}
         </div>
-        <div className="select mono" style={{ display: "grid", alignItems: "center", color: "#5f6e88" }}>
-          total: {data.pagination.total}
+        <div className="select mono compare-summary-chip" style={{ display: "grid", alignItems: "center", color: "#5f6e88" }}>
+          filtered catalog: {data.pagination.total}
         </div>
       </div>
 
@@ -338,9 +338,9 @@ export function SessionExplorer() {
           <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.55rem" }}>
             <div>
               <h3 style={{ margin: 0 }}>Lap Time Story</h3>
-              <p style={{ margin: "0.3rem 0 0", color: "#647487", fontSize: "0.92rem" }}>
-                {lapStory ? "Top two drivers by lap count in selected session." : "No lap series available yet for this session."}
-              </p>
+                <p style={{ margin: "0.3rem 0 0", color: "#647487", fontSize: "0.92rem" }}>
+                  {lapStory ? "Top two drivers by lap count in selected session." : "No lap series available yet. This usually means the selected session has catalog data but no lap ingest yet."}
+                </p>
             </div>
             <span className="pill mono" style={{ background: "var(--accent-soft)" }}>
               query: sessions.getSessionLapStory
@@ -396,7 +396,7 @@ export function SessionExplorer() {
                 {lapStory && topLapRows.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ color: "#6c7d90" }}>
-                      No lap rows available for this session yet. Ingest laps to populate this table.
+                      No lap rows available for this session yet. The session exists in the catalog, but lap-level data has not been ingested into the comparison store.
                     </td>
                   </tr>
                 ) : null}

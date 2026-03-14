@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
@@ -109,25 +108,14 @@ export function IngestionControlPanel() {
 
   return (
     <>
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <div className="brand-mark">PL</div>
-            <div>
-              <p style={{ margin: 0, fontWeight: 700, lineHeight: 1.2 }}>F1 Pace Lab</p>
-              <p style={{ margin: 0, color: "#6d7f95", fontSize: "0.83rem" }}>Ingestion Control</p>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            <Link className="btn" href="/">
-              Back to Explorer
-            </Link>
+      <section className="panel" style={{ marginBottom: "1rem" }}>
+        <div className="panel-header">
+          <h2>&gt; DATA_INGESTION_ENGINE</h2>
+          <div className="panel-controls">
+            <span className="badge fp">PIPELINE_ACTIVE</span>
           </div>
         </div>
-      </header>
-
-      <main className="container">
-        <section className="panel" style={{ marginBottom: "1rem" }}>
+        <div className="panel-content">
           <h1 style={{ margin: "0 0 0.35rem", fontSize: "1.8rem" }}>Ingestion Control Center</h1>
           <p style={{ margin: 0, color: "#42566f" }}>
             Track pending sessions, inspect running ingest activity, and queue single or bulk ingest runs with one click.
@@ -137,42 +125,47 @@ export function IngestionControlPanel() {
               Session catalog is still bootstrapping for this environment. Refresh in a moment once the initial FastF1 schedule sync finishes.
             </p>
           ) : null}
-        </section>
+        </div>
+      </section>
 
-        <section className="grid-4" style={{ marginBottom: "1rem" }}>
-          <article className="kpi-card">
+      <section className="grid-4" style={{ marginBottom: "1rem" }}>
+        <article className="kpi-card">
             <p className="kpi-label">Pending (Filtered)</p>
             <p className="kpi-value" style={{ color: "var(--warn)" }}>
               {data.stats.pendingSessions}
             </p>
-          </article>
-          <article className="kpi-card">
+        </article>
+        <article className="kpi-card">
             <p className="kpi-label">Queued (Filtered)</p>
             <p className="kpi-value" style={{ color: "var(--warn)" }}>{(data.stats as any).queuedSessions ?? 0}</p>
-          </article>
-          <article className="kpi-card">
+        </article>
+        <article className="kpi-card">
             <p className="kpi-label">Upcoming (Filtered)</p>
             <p className="kpi-value" style={{ color: "#6b7e94" }}>{(data.stats as any).upcomingSessions ?? 0}</p>
-          </article>
-          <article className="kpi-card">
+        </article>
+        <article className="kpi-card">
             <p className="kpi-label">Running (Filtered)</p>
             <p className="kpi-value" style={{ color: "#1a6fb3" }}>{(data.stats as any).runningSessions ?? 0}</p>
-          </article>
-          <article className="kpi-card">
+        </article>
+        <article className="kpi-card">
             <p className="kpi-label">Ready (Filtered)</p>
             <p className="kpi-value" style={{ color: "var(--ok)" }}>
               {data.stats.readySessions}
             </p>
-          </article>
-          <article className="kpi-card">
+        </article>
+        <article className="kpi-card">
             <p className="kpi-label">Failed (Filtered)</p>
             <p className="kpi-value" style={{ color: "#9a2f2f" }}>
               {data.stats.failedSessions}
             </p>
-          </article>
-        </section>
+        </article>
+      </section>
 
-        <section className="panel" style={{ marginBottom: "1rem" }}>
+      <section className="panel" style={{ marginBottom: "1rem" }}>
+        <div className="panel-header">
+          <h3>&gt; SYSTEM_CONTROLS</h3>
+        </div>
+        <div className="panel-content">
           <div className="select-row" style={{ marginBottom: "0.75rem" }}>
             <select className="select" value={selectedSeason} onChange={(event) => setSelectedSeason(event.target.value)}>
               <option value="all">All seasons</option>
@@ -228,9 +221,14 @@ export function IngestionControlPanel() {
           </div>
 
           {message ? <p style={{ margin: 0, color: "#405b77" }}>{message}</p> : null}
-        </section>
+        </div>
+      </section>
 
-        <section className="panel" style={{ marginBottom: "1rem" }}>
+      <section className="panel" style={{ marginBottom: "1rem" }}>
+        <div className="panel-header">
+          <h3>&gt; PENDING_SESSION_QUEUE</h3>
+        </div>
+        <div className="panel-content">
           <h2 style={{ marginTop: 0 }}>Pending Sessions</h2>
           <p style={{ marginTop: 0, color: "#5f7189" }}>
             This list only shows sessions that are ready to queue now. Future sessions stay out of this table until they are within the ingest window.
@@ -315,10 +313,15 @@ export function IngestionControlPanel() {
               </button>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="session-explorer-grid" style={{ marginBottom: "1rem" }}>
-          <article className="panel">
+      <section className="session-explorer-grid" style={{ marginBottom: "1rem" }}>
+        <article className="panel">
+          <div className="panel-header">
+            <h3>&gt; WORKER_JOBS</h3>
+          </div>
+          <div className="panel-content">
             <h3 style={{ marginTop: 0 }}>Worker Jobs</h3>
             <div className="table-wrap">
               <table className="table table-compact" style={{ minWidth: 760 }}>
@@ -363,9 +366,14 @@ export function IngestionControlPanel() {
                 </tbody>
               </table>
             </div>
-          </article>
+          </div>
+        </article>
 
-          <article className="panel">
+        <article className="panel">
+          <div className="panel-header">
+            <h3>&gt; RECENT_INGESTION_ACTIVITY</h3>
+          </div>
+          <div className="panel-content">
             <h3 style={{ marginTop: 0 }}>Recent Ingestion Activity</h3>
             <div className="table-wrap" style={{ maxHeight: 360 }}>
               <table className="table table-compact" style={{ minWidth: 560 }}>
@@ -391,9 +399,9 @@ export function IngestionControlPanel() {
                 </tbody>
               </table>
             </div>
-          </article>
-        </section>
-      </main>
+          </div>
+        </article>
+      </section>
     </>
   );
 }

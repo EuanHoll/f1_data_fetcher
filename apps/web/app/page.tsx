@@ -1,25 +1,10 @@
-import { auth } from "@/auth";
-import { AuthPanel } from "@/components/auth-panel";
-import { ComparisonLab } from "@/components/comparison-lab";
-import { CoveragePanel } from "@/components/coverage-panel";
-import { SavedViewsPanel } from "@/components/saved-views-panel";
-import { SessionExplorer } from "@/components/session-explorer";
-import { isViewerAdmin } from "@/lib/authz";
 import Link from "next/link";
+import { AppShell } from "@/components/app-shell";
 
 const productStats = [
-  {
-    label: "Explore sessions",
-    value: "Live"
-  },
-  {
-    label: "Compare drivers",
-    value: "Lap-by-lap"
-  },
-  {
-    label: "Save analysis",
-    value: "Account-ready"
-  }
+  { label: "Module 02", value: "Explore" },
+  { label: "Module 03", value: "Compare" },
+  { label: "Module 04", value: "Workspace" }
 ];
 
 const productPillars = [
@@ -38,56 +23,24 @@ const productPillars = [
 ];
 
 export default async function HomePage() {
-  const session = await auth();
-  const isAdmin = isViewerAdmin({
-    id: session?.user?.id,
-    email: session?.user?.email
-  });
-
   return (
-    <>
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <div className="brand-mark">PL</div>
-            <div>
-              <p style={{ margin: 0, fontWeight: 700, lineHeight: 1.2 }}>F1 Pace Lab</p>
-              <p style={{ margin: 0, color: "#6d7f95", fontSize: "0.83rem" }}>Race pace analysis for the web</p>
-            </div>
-          </div>
-          <div className="topbar-actions">
-            <a href="#workspace" className="btn">
-              Open workspace
-            </a>
-            {isAdmin ? (
-              <Link className="btn" href="/ingestion">
-                Admin ingestion
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      </header>
-
-      <main className="container">
+    <AppShell activeModule="home">
+      <div className="container page-stack">
         <section className="hero-panel">
           <div className="hero-copy">
-            <span className="eyebrow">From data pipeline to product surface</span>
-            <h1>Turn ingested F1 data into an analysis experience people actually want to use.</h1>
+            <span className="eyebrow">Overview Display</span>
+            <h1>Turn ingested telemetry into actionable analysis.</h1>
             <p>
-              F1 Pace Lab now leads with exploration, comparison, and saved analysis. The ingest machinery stays available, but it no longer dominates the front door.
+              The product now leads with session discovery, comparison, and workspace framing. Ingestion machinery stays available in the background for operators.
             </p>
             <div className="hero-actions">
-              <a href="#workspace" className="btn btn-primary">
-                Start exploring
-              </a>
-              <a href="#accounts" className="btn">
-                See account features
-              </a>
+              <Link href="/explore" className="btn btn-primary">INITIATE EXPLORATION</Link>
+              <Link href="/compare" className="btn">OPEN COMPARISON LAB</Link>
             </div>
           </div>
 
           <div className="hero-side panel">
-            <span className="eyebrow">What the product does</span>
+            <span className="eyebrow">Active Modules</span>
             <div className="hero-stat-grid">
               {productStats.map((item) => (
                 <article key={item.label} className="hero-stat-card">
@@ -96,17 +49,15 @@ export default async function HomePage() {
                 </article>
               ))}
             </div>
-            <p className="hero-note">
-              Public users get the analysis surface. Signed-in users get ownership. Admins get ingestion control.
-            </p>
+            <p className="hero-note">Guests can inspect the analysis surface. Authenticated users unlock workspace identity. Admins retain systems access.</p>
           </div>
         </section>
 
         <section className="panel narrative-panel">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Product direction</span>
-              <h2>Keep the backend power, change the user story.</h2>
+              <span className="eyebrow">Module Briefing</span>
+              <h2>Keep backend power, change the user story.</h2>
             </div>
           </div>
           <div className="feature-grid">
@@ -119,33 +70,40 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section id="workspace" className="section-stack">
+        <section className="panel narrative-panel">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">Workspace</span>
-              <h2>Explore the data like an app, not a dev console.</h2>
+              <span className="eyebrow">Mission Routing</span>
+              <h2>Route directly into the live product modules.</h2>
             </div>
-            <p>The analysis flow starts with session discovery, then moves into pace story, driver comparison, and coverage confidence.</p>
+            <p>The redesigned front end moves core workflows into dedicated routes so the product reads like a control surface instead of a stacked demo page.</p>
           </div>
-          <SessionExplorer />
-          <ComparisonLab />
-          <CoveragePanel />
+          <div className="feature-grid">
+            <article className="feature-card">
+              <h3>Session Explorer</h3>
+              <p>Filter live sessions, inspect ingest state, and review lap-story diagnostics in a dedicated page.</p>
+              <div className="hero-actions">
+                <Link href="/explore" className="btn btn-primary">Open Explore</Link>
+              </div>
+            </article>
+            <article className="feature-card">
+              <h3>Comparison Lab</h3>
+              <p>Build multi-session, multi-driver overlays with the current Convex-backed comparison engine.</p>
+              <div className="hero-actions">
+                <Link href="/compare" className="btn btn-primary">Open Compare</Link>
+              </div>
+            </article>
+            <article className="feature-card">
+              <h3>Workspace Archive</h3>
+              <p>Reserve space for saved views now, then layer in persistence once the route and shell are stable.</p>
+              <div className="hero-actions">
+                <Link href="/saved" className="btn btn-primary">Open Workspace</Link>
+              </div>
+            </article>
+          </div>
         </section>
 
-        <section id="accounts" className="section-stack">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Accounts</span>
-              <h2>Optional sign-in, purposeful permissions.</h2>
-            </div>
-            <p>Saved views stay user-owned, while ingestion and operator tooling are reserved for admins.</p>
-          </div>
-          <div className="account-grid">
-            <AuthPanel />
-            <SavedViewsPanel />
-          </div>
-        </section>
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }
