@@ -28,6 +28,8 @@ Then use `/ingestion` in the web UI to queue single/batch ingest jobs.
 
 The worker uses `uv` with dependency metadata in `apps/worker/pyproject.toml` and a committed lockfile at `apps/worker/uv.lock` so installs stay reproducible.
 
+On an empty local environment, Docker also runs a one-shot catalog bootstrap so the ingestion UI has seasons and sessions to work with by default.
+
 ### Direct script usage (optional)
 
 ```bash

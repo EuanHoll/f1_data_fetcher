@@ -1,6 +1,7 @@
 import os
 import time
 
+import requests
 from rq import get_current_job
 
 from fastf1_service import ingest_fastf1_session
@@ -15,6 +16,42 @@ def _set_job_meta(**values):
     return job
 
 
+def _post_job_update(payload: dict):
+    base_url = str(payload["baseUrl"]).rstrip("/")
+    api_key = str(payload["ingestApiKey"])
+    job = get_current_job()
+    if not job:
+        return
+
+    meta = job.meta or {}
+    response = requests.post(
+        f"{base_url}/api/ingest/worker-job",
+        json={
+            "jobId": job.id,
+            "status": meta.get("status", "queued"),
+            "createdAt": meta.get("createdAt"),
+            "startedAt": meta.get("startedAt"),
+            "completedAt": meta.get("completedAt"),
+            "total": meta.get("total", 0),
+            "completed": meta.get("completed", 0),
+            "failed": meta.get("failed", 0),
+            "queuePosition": meta.get("queuePosition"),
+            "lastError": meta.get("lastError"),
+            "requestedSessionsJson": meta.get("requestedSessionsJson"),
+            "resultsJson": json_dumps(meta.get("results", [])),
+        },
+        headers={"x-ingest-key": api_key, "content-type": "application/json"},
+        timeout=60,
+    )
+    response.raise_for_status()
+
+
+def json_dumps(value):
+    import json
+
+    return json.dumps(value)
+
+
 def process_ingest_job(payload: dict):
     sessions = payload["sessions"]
     batch_size = int(payload.get("batchSize") or 500)
@@ -24,14 +61,18 @@ def process_ingest_job(payload: dict):
         status="running",
         jobType="session_ingest",
         baseUrl=payload["baseUrl"],
+        createdAt=int(payload.get("createdAt") or int(time.time() * 1000)),
         total=len(sessions),
         completed=0,
         failed=0,
+        queuePosition=payload.get("queuePosition"),
         startedAt=int(time.time() * 1000),
         sessions=sessions,
+        requestedSessionsJson=json_dumps(sessions),
         lastError=None,
         results=[],
     )
+    _post_job_update(payload)
 
     completed = 0
     failed = 0
@@ -59,6 +100,7 @@ def process_ingest_job(payload: dict):
                 }
             )
             _set_job_meta(completed=completed, failed=failed, results=results)
+            _post_job_update(payload)
         except Exception as exc:
             failed += 1
             results.append(
@@ -71,13 +113,16 @@ def process_ingest_job(payload: dict):
                 }
             )
             _set_job_meta(completed=completed, failed=failed, results=results, lastError=str(exc))
+            _post_job_update(payload)
 
     completed_at = int(time.time() * 1000)
     if failed > 0:
         _set_job_meta(status="failed", completedAt=completed_at, completed=completed, failed=failed, results=results)
+        _post_job_update(payload)
         raise RuntimeError(f"{failed} session(s) failed in worker job")
 
     _set_job_meta(status="succeeded", completedAt=completed_at, completed=completed, failed=failed, results=results)
+    _post_job_update(payload)
     return {
         "ok": True,
         "completed": completed,

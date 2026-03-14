@@ -175,3 +175,17 @@ export const getCoverage = query({
     };
   }
 });
+
+export const getBootstrapStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const seasons = await ctx.db.query("seasons").collect();
+    const sessions = await ctx.db.query("sessions").collect();
+
+    return {
+      seasonCount: seasons.length,
+      sessionCount: sessions.length,
+      hasCatalog: seasons.length > 0 && sessions.length > 0
+    };
+  }
+});

@@ -146,6 +146,17 @@ export async function POST(request: Request) {
         sessions: [{ year, round, sessionCode }]
       });
 
+      const client = getConvexAdminClient();
+      if (workerResult.jobId) {
+        await client.mutation(api.workerJobs.recordQueuedJob, {
+          jobId: String(workerResult.jobId),
+          createdAt: Date.now(),
+          total: 1,
+          queuePosition: typeof workerResult.queueSize === "number" ? Number(workerResult.queueSize) : undefined,
+          requestedSessionsJson: JSON.stringify([{ year, round, sessionCode }])
+        });
+      }
+
       return NextResponse.json({ ok: true, queued: 1, ...workerResult });
     }
 
@@ -170,6 +181,16 @@ export async function POST(request: Request) {
         ingestApiKey: context.apiKey,
         sessions
       });
+
+      if (workerResult.jobId) {
+        await client.mutation(api.workerJobs.recordQueuedJob, {
+          jobId: String(workerResult.jobId),
+          createdAt: Date.now(),
+          total: sessions.length,
+          queuePosition: typeof workerResult.queueSize === "number" ? Number(workerResult.queueSize) : undefined,
+          requestedSessionsJson: JSON.stringify(sessions)
+        });
+      }
 
       return NextResponse.json({ ok: true, queued: sessions.length, ...workerResult });
     }

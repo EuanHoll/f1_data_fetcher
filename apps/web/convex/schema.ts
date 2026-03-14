@@ -110,5 +110,22 @@ export default defineSchema({
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
     message: v.optional(v.string())
-  }).index("by_started_at", ["startedAt"])
+  }).index("by_started_at", ["startedAt"]),
+
+  workerJobs: defineTable({
+    jobId: v.string(),
+    status: v.union(v.literal("queued"), v.literal("running"), v.literal("succeeded"), v.literal("failed")),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    total: v.number(),
+    completed: v.number(),
+    failed: v.number(),
+    queuePosition: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    requestedSessionsJson: v.optional(v.string()),
+    resultsJson: v.optional(v.string())
+  })
+    .index("by_job_id", ["jobId"])
+    .index("by_created_at", ["createdAt"])
 });

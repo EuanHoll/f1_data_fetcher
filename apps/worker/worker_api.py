@@ -148,7 +148,9 @@ def create_job(payload: CreateIngestJobPayload, x_worker_key: str | None = Heade
             "completed": 0,
             "failed": 0,
             "createdAt": int(time.time() * 1000),
+            "queuePosition": queue.count,
             "sessions": sessions,
+            "requestedSessionsJson": __import__("json").dumps(sessions),
             "results": [],
         }
     )

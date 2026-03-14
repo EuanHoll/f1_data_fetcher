@@ -1,9 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+
+type WorkerJob = {
+  id: string;
+  jobId: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  createdAt: number;
+  startedAt: number | null;
+  completedAt: number | null;
+  total: number;
+  completed: number;
+  failed: number;
+  queuePosition: number | null;
+  lastError: string | null;
+};
 
 function formatDate(value: number | null) {
   if (!value) {
@@ -27,6 +41,7 @@ export function IngestionControlPanel() {
     sessionCode: selectedSessionCode === "all" ? undefined : selectedSessionCode,
     order: "oldest"
   });
+  const workerJobs = (useQuery(api.workerJobs.listRecent, {}) ?? []) as WorkerJob[];
 
   useEffect(() => {
     setCurrentPage(0);
@@ -64,9 +79,8 @@ export function IngestionControlPanel() {
       }
 
       const queued = Number(result.queued ?? 0);
-      const pid = result.pid ? ` (pid ${String(result.pid)})` : "";
       const jobId = result.jobId ? ` job ${String(result.jobId)}` : "";
-      setMessage(`Queued ${queued} session(s)${jobId}${pid}.`);
+      setMessage(`Queued ${queued} session(s)${jobId}.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unknown ingest control error");
     } finally {
@@ -108,6 +122,11 @@ export function IngestionControlPanel() {
           <p style={{ margin: 0, color: "#42566f" }}>
             Track pending sessions, inspect running ingest activity, and queue single or bulk ingest runs with one click.
           </p>
+          {data.stats.totalSessions === 0 ? (
+            <p style={{ margin: "0.75rem 0 0", color: "#7a5b16" }}>
+              Session catalog is still bootstrapping for this environment. Refresh in a moment once the initial FastF1 schedule sync finishes.
+            </p>
+          ) : null}
         </section>
 
         <section className="grid-4" style={{ marginBottom: "1rem" }}>
@@ -119,7 +138,7 @@ export function IngestionControlPanel() {
           </article>
           <article className="kpi-card">
             <p className="kpi-label">Running Jobs</p>
-            <p className="kpi-value">{runDiagnostics.runningCount}</p>
+            <p className="kpi-value">{workerJobs.filter((job) => job.status === "running" || job.status === "queued").length}</p>
           </article>
           <article className="kpi-card">
             <p className="kpi-label">Ready (Filtered)</p>
@@ -257,28 +276,38 @@ export function IngestionControlPanel() {
 
         <section className="session-explorer-grid" style={{ marginBottom: "1rem" }}>
           <article className="panel">
-            <h3 style={{ marginTop: 0 }}>Running Ingestion Runs</h3>
+            <h3 style={{ marginTop: 0 }}>Worker Jobs</h3>
             <div className="table-wrap">
               <table className="table table-compact" style={{ minWidth: 560 }}>
                 <thead>
                   <tr>
-                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Progress</th>
                     <th>Started</th>
-                    <th>Message</th>
+                    <th>Error</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {runDiagnostics.runningRuns.map((run) => (
-                    <tr key={run.id}>
-                      <td>{run.source}</td>
-                      <td className="mono">{formatDate(run.startedAt)}</td>
-                      <td>{run.message ?? "-"}</td>
+                  {workerJobs.map((job) => (
+                    <tr key={job.id}>
+                      <td>
+                        <span className="pill" style={{ color: job.status === "succeeded" ? "var(--ok)" : job.status === "failed" ? "#9a2f2f" : "var(--warn)" }}>
+                          {job.status}
+                        </span>
+                      </td>
+                      <td className="mono">
+                        {job.completed}/{job.total}
+                        {job.failed ? ` failed ${job.failed}` : ""}
+                        {job.status === "queued" && job.queuePosition ? ` (queue ${job.queuePosition})` : ""}
+                      </td>
+                      <td className="mono">{formatDate(job.startedAt ?? job.createdAt)}</td>
+                      <td>{job.lastError ?? "-"}</td>
                     </tr>
                   ))}
-                  {runDiagnostics.runningRuns.length === 0 ? (
+                  {workerJobs.length === 0 ? (
                     <tr>
-                      <td colSpan={3} style={{ color: "#6b7e94" }}>
-                        No running ingestion run at the moment.
+                      <td colSpan={4} style={{ color: "#6b7e94" }}>
+                        No worker jobs recorded yet.
                       </td>
                     </tr>
                   ) : null}

@@ -15,6 +15,7 @@ import type * as ingestion from "../ingestion.js";
 import type * as savedViews from "../savedViews.js";
 import type * as sessions from "../sessions.js";
 import type * as users from "../users.js";
+import type * as workerJobs from "../workerJobs.js";
 
 import type {
   ApiFromModules,
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   savedViews: typeof savedViews;
   sessions: typeof sessions;
   users: typeof users;
+  workerJobs: typeof workerJobs;
 }>;
 
 /**
