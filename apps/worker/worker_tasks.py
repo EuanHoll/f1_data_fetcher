@@ -17,7 +17,7 @@ def _set_job_meta(**values):
 
 
 def _post_job_update(payload: dict):
-    base_url = str(payload["baseUrl"]).rstrip("/")
+    base_url = _resolve_base_url(payload)
     api_key = str(payload["ingestApiKey"])
     job = get_current_job()
     if not job:
@@ -52,15 +52,23 @@ def json_dumps(value):
     return json.dumps(value)
 
 
+def _resolve_base_url(payload: dict):
+    base_url = str(os.environ.get("INGEST_BASE_URL") or payload.get("baseUrl") or "http://web:3000").rstrip("/")
+    if "localhost" in base_url or "127.0.0.1" in base_url:
+        return "http://web:3000"
+    return base_url
+
+
 def process_ingest_job(payload: dict):
     sessions = payload["sessions"]
     batch_size = int(payload.get("batchSize") or 500)
     cache_dir = payload.get("cacheDir") or os.environ.get("FASTF1_CACHE_DIR", "/data/fastf1-cache")
+    base_url = _resolve_base_url(payload)
 
     _set_job_meta(
         status="running",
         jobType="session_ingest",
-        baseUrl=payload["baseUrl"],
+        baseUrl=base_url,
         createdAt=int(payload.get("createdAt") or int(time.time() * 1000)),
         total=len(sessions),
         completed=0,
@@ -81,7 +89,7 @@ def process_ingest_job(payload: dict):
     for item in sessions:
         try:
             result = ingest_fastf1_session(
-                base_url=payload["baseUrl"],
+                base_url=base_url,
                 api_key=payload["ingestApiKey"],
                 year=int(item["year"]),
                 round_number=int(item["round"]),
