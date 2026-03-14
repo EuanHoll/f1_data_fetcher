@@ -1,0 +1,103 @@
+import time
+
+from rq import get_current_job
+
+from app.config import get_fastf1_cache_dir, get_ingest_base_url
+from app.services.fastf1_ingest import ingest_fastf1_session
+from app.services.http_client import create_http_session
+from app.services.worker_status import post_worker_job_update, serialize_results
+
+
+def _set_job_meta(**values):
+    job = get_current_job()
+    if not job:
+        return None
+    job.meta.update(values)
+    job.save_meta()
+    return job
+
+
+def _post_job_update(payload: dict):
+    job = get_current_job()
+    if not job:
+        return
+
+    meta = job.meta or {}
+    with create_http_session() as http_session:
+        post_worker_job_update(
+            http_session,
+            str(meta.get("baseUrl") or get_ingest_base_url()),
+            str(payload["ingestApiKey"]),
+            {
+                "jobId": job.id,
+                "status": meta.get("status", "queued"),
+                "createdAt": meta.get("createdAt"),
+                "startedAt": meta.get("startedAt"),
+                "completedAt": meta.get("completedAt"),
+                "total": meta.get("total", 0),
+                "completed": meta.get("completed", 0),
+                "failed": meta.get("failed", 0),
+                "queuePosition": meta.get("queuePosition"),
+                "lastError": meta.get("lastError"),
+                "requestedSessionsJson": meta.get("requestedSessionsJson"),
+                "resultsJson": serialize_results(meta.get("results", [])),
+            },
+        )
+
+
+def process_ingest_job(payload: dict):
+    sessions = payload["sessions"]
+    batch_size = int(payload.get("batchSize") or 500)
+    cache_dir = payload.get("cacheDir") or get_fastf1_cache_dir()
+    base_url = get_ingest_base_url(str(payload.get("baseUrl") or "http://web:3000"))
+
+    _set_job_meta(
+        status="running",
+        jobType="session_ingest",
+        baseUrl=base_url,
+        createdAt=int(payload.get("createdAt") or int(time.time() * 1000)),
+        total=len(sessions),
+        completed=0,
+        failed=0,
+        queuePosition=payload.get("queuePosition"),
+        startedAt=int(time.time() * 1000),
+        sessions=sessions,
+        requestedSessionsJson=serialize_results(sessions),
+        lastError=None,
+        results=[],
+    )
+    _post_job_update(payload)
+
+    completed = 0
+    failed = 0
+    results = []
+    for item in sessions:
+        try:
+            result = ingest_fastf1_session(
+                base_url=base_url,
+                api_key=payload["ingestApiKey"],
+                year=int(item["year"]),
+                round_number=int(item["round"]),
+                session_code=str(item["sessionCode"]),
+                batch_size=batch_size,
+                cache_dir=cache_dir,
+            )
+            completed += 1
+            results.append({"year": int(item["year"]), "round": int(item["round"]), "sessionCode": str(item["sessionCode"]), "status": "succeeded", "lapCount": result["lapCount"]})
+            _set_job_meta(completed=completed, failed=failed, results=results)
+            _post_job_update(payload)
+        except Exception as exc:
+            failed += 1
+            results.append({"year": int(item["year"]), "round": int(item["round"]), "sessionCode": str(item["sessionCode"]), "status": "failed", "error": str(exc)})
+            _set_job_meta(completed=completed, failed=failed, results=results, lastError=str(exc))
+            _post_job_update(payload)
+
+    completed_at = int(time.time() * 1000)
+    if failed > 0:
+        _set_job_meta(status="failed", completedAt=completed_at, completed=completed, failed=failed, results=results)
+        _post_job_update(payload)
+        raise RuntimeError(f"{failed} session(s) failed in worker job")
+
+    _set_job_meta(status="succeeded", completedAt=completed_at, completed=completed, failed=failed, results=results)
+    _post_job_update(payload)
+    return {"ok": True, "completed": completed, "failed": failed, "results": results}

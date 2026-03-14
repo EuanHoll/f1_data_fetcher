@@ -146,7 +146,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/worker/Dockerfile
-    command: ["/usr/local/bin/uv", "run", "uvicorn", "worker_api:app", "--host", "0.0.0.0", "--port", "8080"]
+    command: ["/usr/local/bin/uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
     environment:
       - INGEST_API_KEY=${INGEST_API_KEY}
       - WORKER_API_KEY=${WORKER_API_KEY}
@@ -175,7 +175,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/worker/Dockerfile
-    command: ["/usr/local/bin/uv", "run", "python", "run_worker.py"]
+    command: ["/usr/local/bin/uv", "run", "python", "-m", "app.workers.runner"]
     environment:
       - INGEST_API_KEY=${INGEST_API_KEY}
       - WORKER_API_KEY=${WORKER_API_KEY}
@@ -199,7 +199,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/worker/Dockerfile
-    command: ["/usr/local/bin/uv", "run", "python", "bootstrap_catalog.py"]
+    command: ["/usr/local/bin/uv", "run", "python", "-m", "app.scripts.bootstrap_catalog"]
     environment:
       - INGEST_API_KEY=${INGEST_API_KEY}
       - INGEST_BASE_URL=${INGEST_BASE_URL:-http://web:3000}

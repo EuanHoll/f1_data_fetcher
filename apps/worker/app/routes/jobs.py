@@ -1,56 +1,21 @@
-import os
+import json
 import time
-from typing import Literal
 
-from fastapi import FastAPI, Header, HTTPException
-from pydantic import BaseModel, Field
-from redis import Redis
-from rq import Queue
-from rq.job import Job
+from fastapi import APIRouter, Header, HTTPException
 from rq.exceptions import NoSuchJobError
+from rq.job import Job
 from rq.registry import FailedJobRegistry, FinishedJobRegistry, StartedJobRegistry
 
-
-app = FastAPI(title="F1 Ingest Worker", version="1.0.0")
-
-
-class SessionRef(BaseModel):
-    year: int
-    round: int
-    sessionCode: str = Field(min_length=1)
+from app.config import get_worker_api_key
+from app.models.jobs import CreateIngestJobPayload, JobSummary, SessionRef
+from app.queue import get_queue
 
 
-class CreateIngestJobPayload(BaseModel):
-    baseUrl: str
-    ingestApiKey: str = Field(min_length=1)
-    sessions: list[SessionRef]
-    batchSize: int = Field(default=500, ge=1, le=5000)
-
-
-class JobSummary(BaseModel):
-    id: str
-    status: Literal["queued", "running", "succeeded", "failed"]
-    createdAt: int | None = None
-    startedAt: int | None = None
-    completedAt: int | None = None
-    total: int = 0
-    completed: int = 0
-    failed: int = 0
-    queuePosition: int | None = None
-    lastError: str | None = None
-    results: list[dict] = Field(default_factory=list)
-
-
-def get_valkey_connection():
-    return Redis.from_url(os.environ.get("VALKEY_URL", "redis://127.0.0.1:6379/0"))
-
-
-def get_queue():
-    return Queue(os.environ.get("RQ_QUEUE_NAME", "ingest"), connection=get_valkey_connection(), default_timeout=60 * 60 * 4)
+router = APIRouter()
 
 
 def require_worker_key(worker_key: str | None):
-    required_key = os.environ.get("WORKER_API_KEY", "")
+    required_key = get_worker_api_key()
     if required_key and worker_key != required_key:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -69,7 +34,7 @@ def normalize_sessions(items: list[SessionRef]):
     return list(unique.values())
 
 
-def serialize_job(job: Job, queue: Queue):
+def serialize_job(job: Job, queue) -> JobSummary:
     job.refresh()
     meta = job.meta or {}
 
@@ -106,7 +71,7 @@ def serialize_job(job: Job, queue: Queue):
     )
 
 
-@app.get("/health")
+@router.get("/health")
 def health():
     queue = get_queue()
     return {
@@ -120,7 +85,7 @@ def health():
     }
 
 
-@app.post("/jobs")
+@router.post("/jobs")
 def create_job(payload: CreateIngestJobPayload, x_worker_key: str | None = Header(default=None)):
     require_worker_key(x_worker_key)
 
@@ -129,13 +94,17 @@ def create_job(payload: CreateIngestJobPayload, x_worker_key: str | None = Heade
         raise HTTPException(status_code=400, detail="No valid sessions provided")
 
     queue = get_queue()
+    created_at = int(time.time() * 1000)
+    queue_position = queue.count + 1
     job = queue.enqueue(
-        "worker_tasks.process_ingest_job",
+        "app.workers.tasks.process_ingest_job",
         {
             "baseUrl": payload.baseUrl,
             "ingestApiKey": payload.ingestApiKey,
             "sessions": sessions,
             "batchSize": payload.batchSize,
+            "createdAt": created_at,
+            "queuePosition": queue_position,
         },
         result_ttl=60 * 60 * 24,
         failure_ttl=60 * 60 * 24 * 7,
@@ -147,24 +116,19 @@ def create_job(payload: CreateIngestJobPayload, x_worker_key: str | None = Heade
             "total": len(sessions),
             "completed": 0,
             "failed": 0,
-            "createdAt": int(time.time() * 1000),
-            "queuePosition": queue.count,
+            "createdAt": created_at,
+            "queuePosition": queue_position,
             "sessions": sessions,
-            "requestedSessionsJson": __import__("json").dumps(sessions),
+            "requestedSessionsJson": json.dumps(sessions),
             "results": [],
         }
     )
     job.save_meta()
 
-    return {
-        "ok": True,
-        "jobId": job.id,
-        "queued": len(sessions),
-        "queueSize": queue.count,
-    }
+    return {"ok": True, "jobId": job.id, "queued": len(sessions), "queueSize": queue.count}
 
 
-@app.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}")
 def get_job(job_id: str, x_worker_key: str | None = Header(default=None)):
     require_worker_key(x_worker_key)
 

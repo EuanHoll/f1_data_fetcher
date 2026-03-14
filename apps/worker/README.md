@@ -7,10 +7,13 @@ This worker fetches FastF1 data and pushes it into Convex through the Next API b
 - FastF1 has the richest Python ecosystem support for F1 session data.
 - The website should read from Convex (cached) instead of re-fetching every page load.
 
-## Script
+## Layout
 
-- `apps/worker/ingest_fastf1_session.py`
-- `apps/worker/sync_fastf1_catalog.py`
+- `apps/worker/app/main.py` - FastAPI app entrypoint
+- `apps/worker/app/routes/` - HTTP routes
+- `apps/worker/app/workers/` - RQ runner and job execution
+- `apps/worker/app/services/` - FastF1 ingest/catalog and worker status helpers
+- `apps/worker/app/scripts/` - manual operator scripts
 
 ## Usage
 
@@ -33,13 +36,13 @@ On an empty local environment, Docker also runs a one-shot catalog bootstrap so 
 ### Direct script usage (optional)
 
 ```bash
-python apps/worker/ingest_fastf1_session.py --year 2025 --round 2 --session R --base-url http://localhost:3000
+cd apps/worker && uv run python -m app.scripts.ingest_session --year 2025 --round 2 --session R --base-url http://localhost:3000
 ```
 
 Catalog sync (discover what exists across seasons):
 
 ```bash
-python apps/worker/sync_fastf1_catalog.py --start-year 2018 --end-year 2026 --base-url http://localhost:3000
+cd apps/worker && uv run python -m app.scripts.sync_catalog --start-year 2018 --end-year 2026 --base-url http://localhost:3000
 ```
 
 Required env var:
@@ -61,6 +64,6 @@ Historical sessions stay cached in Convex with long TTL. Live-window sessions ge
 
 ## Suggested schedule
 
-- Catalog sync (`sync_fastf1_catalog.py`): every 6-24 hours
-- Live weekend session ingest (`ingest_fastf1_session.py`): every 5-10 minutes for active sessions
+- Catalog sync (`app.scripts.sync_catalog`): every 6-24 hours
+- Live weekend session ingest (`app.scripts.ingest_session`): every 5-10 minutes for active sessions
 - Historical backfill ingest: one-off or nightly until complete

@@ -123,11 +123,11 @@ Use this to sync available seasons/events/sessions metadata so the app knows wha
 Run worker example from repo root:
 
 ```bash
-python apps/worker/ingest_fastf1_session.py --year 2025 --round 2 --session R --base-url http://localhost:3000
+cd apps/worker && uv run python -m app.scripts.ingest_session --year 2025 --round 2 --session R --base-url http://localhost:3000
 ```
 
 Sync available calendar metadata:
 
 ```bash
-python apps/worker/sync_fastf1_catalog.py --start-year 2018 --end-year 2026 --base-url http://localhost:3000
+cd apps/worker && uv run python -m app.scripts.sync_catalog --start-year 2018 --end-year 2026 --base-url http://localhost:3000
 ```

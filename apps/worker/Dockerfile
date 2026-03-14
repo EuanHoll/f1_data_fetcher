@@ -15,4 +15,4 @@ RUN mkdir -p /data/fastf1-cache
 
 EXPOSE 8080
 
-CMD ["/usr/local/bin/uv", "run", "uvicorn", "worker_api:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["/usr/local/bin/uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
