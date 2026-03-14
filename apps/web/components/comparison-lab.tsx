@@ -36,8 +36,11 @@ export function ComparisonLab() {
   const [sessionCode, setSessionCode] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState<string>("all");
   const [seasonMenuOpen, setSeasonMenuOpen] = useState(false);
+  const [chartMode, setChartMode] = useState<"absolute" | "delta">("absolute");
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const [selectedDriverCodes, setSelectedDriverCodes] = useState<string[]>([]);
+  const [hiddenSeriesKeys, setHiddenSeriesKeys] = useState<string[]>([]);
+  const [hoveredSeriesKey, setHoveredSeriesKey] = useState<string | null>(null);
   const hasAutoSelectedSessions = useRef(false);
   const hasAutoSelectedDrivers = useRef(false);
   const seasonMenuRef = useRef<HTMLDivElement | null>(null);
@@ -141,50 +144,119 @@ export function ComparisonLab() {
     return { byDriver, bySession };
   }, [selectedDriverCodes, selectedSessionIds]);
 
-  const chartSeries = useMemo(() => {
-    if (!comparison || comparison.series.length === 0) {
-      return [] as Array<{ key: string; polyline: string; color: string; dashArray?: string; label: string }>;
-    }
-
-    const allTimes = comparison.series.flatMap((series) => series.points.map((point) => point.lapTimeMs));
-    const minMs = Math.min(...allTimes);
-    const maxMs = Math.max(...allTimes);
-    const range = Math.max(maxMs - minMs, 1);
-
-    return comparison.series.map((series) => ({
-      key: series.key,
-      polyline: series.points
-        .map((point) => {
-          const x = point.progressRatio * 100;
-          const y = 100 - ((point.lapTimeMs - minMs) / range) * 88 - 6;
-          return `${x},${y}`;
-        })
-        .join(" "),
-      color: lineStyles.byDriver.get(series.driverCode) ?? palette[0],
-      dashArray: lineStyles.bySession.get(series.sessionId) === "none" ? undefined : lineStyles.bySession.get(series.sessionId),
-      label: `${displayDriverLabel(series.driverCode, series.driverName)} - ${series.sessionLabel}`
-    }));
-  }, [comparison, lineStyles]);
-
-  const driverLegend = useMemo(() => {
-    if (!comparison) {
-      return [] as Array<{ driverCode: string; driverName: string | null; teamName: string | null }>;
-    }
-
-    return comparison.aggregates.map((row) => ({
-      driverCode: row.driverCode,
-      driverName: row.driverName,
-      teamName: row.teamName
-    }));
+  useEffect(() => {
+    const availableKeys = new Set((comparison?.series ?? []).map((series) => series.key));
+    setHiddenSeriesKeys((current) => current.filter((key) => availableKeys.has(key)));
+    setHoveredSeriesKey((current) => (current && availableKeys.has(current) ? current : null));
   }, [comparison]);
 
-  const sessionLegend = useMemo(() => {
-    return selectedSessions.map((session, index) => ({
-      id: String(session.id),
-      label: `${session.seasonYear ?? "-"} ${session.sessionCode} ${session.eventName}`,
-      dashArray: dashPatterns[index % dashPatterns.length]
+  const chartModel = useMemo(() => {
+    if (!comparison || comparison.series.length === 0) {
+      return null;
+    }
+
+    const allPlottedSeries = comparison.series.map((series) => ({
+      ...series,
+      plottedPoints: series.points.map((point) => ({
+        ...point,
+        plottedValue: chartMode === "delta" && series.sessionBestLapMs !== null ? point.lapTimeMs - series.sessionBestLapMs : point.lapTimeMs
+      }))
     }));
-  }, [selectedSessions]);
+
+    const allValues = allPlottedSeries.flatMap((series) => series.plottedPoints.map((point) => point.plottedValue));
+    const maxPointsPerSeries = Math.max(...allPlottedSeries.map((series) => series.points.length), 1);
+    const minMs = Math.min(...allValues);
+    const maxMs = Math.max(...allValues);
+    const range = Math.max(maxMs - minMs, 1);
+
+    const visibleSeries = comparison.series.filter((series) => !hiddenSeriesKeys.includes(series.key));
+    if (visibleSeries.length === 0) {
+      return {
+        empty: true as const,
+        totalSeries: comparison.series.length,
+        chartMode
+      };
+    }
+
+    const plottedSeries = visibleSeries.map((series) => ({
+      ...series,
+      plottedPoints: series.points.map((point) => ({
+        ...point,
+        plottedValue: chartMode === "delta" && series.sessionBestLapMs !== null ? point.lapTimeMs - series.sessionBestLapMs : point.lapTimeMs
+      }))
+    }));
+    const chartWidth = Math.max(960, maxPointsPerSeries * 78);
+    const chartHeight = 520;
+    const paddingLeft = 92;
+    const paddingRight = 30;
+    const paddingTop = 28;
+    const paddingBottom = 56;
+    const innerWidth = chartWidth - paddingLeft - paddingRight;
+    const innerHeight = chartHeight - paddingTop - paddingBottom;
+    const yTicks = Array.from({ length: 5 }, (_, index) => {
+      const ratio = index / 4;
+      const value = maxMs - range * ratio;
+      const y = paddingTop + innerHeight * ratio;
+      return {
+        y,
+        value: Math.round(value)
+      };
+    });
+    const xTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => ({
+      x: paddingLeft + innerWidth * ratio,
+      label: ratio === 0 ? "Start" : ratio === 1 ? "Finish" : `${Math.round(ratio * 100)}%`
+    }));
+
+    return {
+      chartWidth,
+      chartHeight,
+      paddingLeft,
+      paddingRight,
+      paddingTop,
+      paddingBottom,
+      innerWidth,
+      innerHeight,
+      yTicks,
+      xTicks,
+      minMs,
+      maxMs,
+      empty: false as const,
+      chartMode,
+      series: plottedSeries.map((series) => {
+        const points = series.plottedPoints.map((point) => {
+          const x = paddingLeft + innerWidth * point.progressRatio;
+          const y = paddingTop + ((maxMs - point.plottedValue) / range) * innerHeight;
+          return { x, y, lapTimeMs: point.lapTimeMs, plottedValue: point.plottedValue, lapNumber: point.lapNumber };
+        });
+
+        return {
+          key: series.key,
+          sessionId: series.sessionId,
+          driverCode: series.driverCode,
+          points,
+          polyline: points.map((point) => `${point.x},${point.y}`).join(" "),
+          color: lineStyles.byDriver.get(series.driverCode) ?? palette[0],
+          dashArray: lineStyles.bySession.get(series.sessionId) === "none" ? undefined : lineStyles.bySession.get(series.sessionId),
+          label: `${displayDriverLabel(series.driverCode, series.driverName)} - ${series.sessionLabel}`,
+          endPoint: points[points.length - 1],
+          startPoint: points[0]
+        };
+      })
+    };
+  }, [chartMode, comparison, hiddenSeriesKeys, lineStyles]);
+
+  const chartSeriesLegend = useMemo(() => {
+    return (comparison?.series ?? []).map((series) => ({
+      key: series.key,
+      driverCode: series.driverCode,
+      driverName: series.driverName,
+      sessionLabel: series.sessionLabel,
+      sessionId: series.sessionId,
+      hidden: hiddenSeriesKeys.includes(series.key),
+      color: lineStyles.byDriver.get(series.driverCode) ?? palette[0],
+      dashArray: lineStyles.bySession.get(series.sessionId) === "none" ? undefined : lineStyles.bySession.get(series.sessionId)
+    }));
+  }, [comparison, hiddenSeriesKeys, lineStyles]);
 
   return (
     <section className="panel" style={{ marginBottom: "1rem" }}>
@@ -364,47 +436,123 @@ export function ComparisonLab() {
             <div className="section-heading">
               <div>
                 <h3 style={{ margin: 0 }}>Normalized Pace Overlay</h3>
-                <p>Color identifies driver. Stroke pattern identifies session, so one driver can be tracked across years at the same circuit.</p>
+                <p>Color identifies driver. Stroke pattern identifies session. Use the visibility controls to focus the chart instead of loading it again.</p>
+              </div>
+              <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
+                <button className={`btn ${chartMode === "absolute" ? "btn-primary" : ""}`} onClick={() => setChartMode("absolute")}>
+                  Absolute lap time
+                </button>
+                <button className={`btn ${chartMode === "delta" ? "btn-primary" : ""}`} onClick={() => setChartMode("delta")}>
+                  Delta to session best
+                </button>
+                <button className="btn" onClick={() => setHiddenSeriesKeys([])}>
+                  Show all lines
+                </button>
               </div>
             </div>
-            <div className="story-chart">
-              <svg viewBox="0 0 100 100" style={{ width: "100%", height: 460 }} aria-label="Multi-session pace overlay">
-                <polyline fill="none" stroke="#e7eef9" strokeWidth="0.8" points="0,94 100,94" />
-                {chartSeries.map((series) => (
-                  <polyline
-                    key={series.key}
-                    fill="none"
-                    stroke={series.color}
-                    strokeWidth="2"
-                    strokeDasharray={series.dashArray}
-                    points={series.polyline}
-                  />
-                ))}
-              </svg>
+            <div className="story-chart compare-chart-shell">
+              <div className="compare-chart-scroll">
+                {chartModel && !chartModel.empty ? (
+                  <svg
+                    viewBox={`0 0 ${chartModel.chartWidth} ${chartModel.chartHeight}`}
+                    style={{ width: chartModel.chartWidth, height: chartModel.chartHeight }}
+                    aria-label="Multi-session pace overlay"
+                  >
+                    {chartModel.yTicks.map((tick) => (
+                      <g key={`y-${tick.y}`}>
+                        <line
+                          x1={chartModel.paddingLeft}
+                          y1={tick.y}
+                          x2={chartModel.chartWidth - chartModel.paddingRight}
+                          y2={tick.y}
+                          stroke="#e4ebf5"
+                          strokeWidth="1"
+                        />
+                        <text x={chartModel.paddingLeft - 12} y={tick.y + 4} textAnchor="end" fontSize="12" fill="#73839a">
+                          {chartModel.chartMode === "delta" ? formatDelta(tick.value) : formatLapMs(tick.value)}
+                        </text>
+                      </g>
+                    ))}
+                    {chartModel.xTicks.map((tick) => (
+                      <g key={`x-${tick.label}`}>
+                        <line
+                          x1={tick.x}
+                          y1={chartModel.paddingTop}
+                          x2={tick.x}
+                          y2={chartModel.chartHeight - chartModel.paddingBottom}
+                          stroke="#eef3fa"
+                          strokeWidth="1"
+                        />
+                        <text x={tick.x} y={chartModel.chartHeight - 18} textAnchor="middle" fontSize="12" fill="#73839a">
+                          {tick.label}
+                        </text>
+                      </g>
+                    ))}
+                    <rect
+                      x={chartModel.paddingLeft}
+                      y={chartModel.paddingTop}
+                      width={chartModel.innerWidth}
+                      height={chartModel.innerHeight}
+                      fill="transparent"
+                      stroke="#dfe8f4"
+                      strokeWidth="1"
+                      rx="18"
+                    />
+                    {chartModel.series.map((series) => (
+                      <g key={series.key} onMouseEnter={() => setHoveredSeriesKey(series.key)} onMouseLeave={() => setHoveredSeriesKey((current) => (current === series.key ? null : current))}>
+                        <polyline
+                          fill="none"
+                          stroke={series.color}
+                          strokeWidth={hoveredSeriesKey === null || hoveredSeriesKey === series.key ? 4.5 : 2.2}
+                          opacity={hoveredSeriesKey === null || hoveredSeriesKey === series.key ? 1 : 0.18}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeDasharray={series.dashArray}
+                          points={series.polyline}
+                        />
+                        {series.startPoint ? <circle cx={series.startPoint.x} cy={series.startPoint.y} r="4" fill={series.color} opacity={hoveredSeriesKey === null || hoveredSeriesKey === series.key ? 1 : 0.18} /> : null}
+                        {series.endPoint ? <circle cx={series.endPoint.x} cy={series.endPoint.y} r="4.5" fill={series.color} opacity={hoveredSeriesKey === null || hoveredSeriesKey === series.key ? 1 : 0.18} /> : null}
+                      </g>
+                    ))}
+                  </svg>
+                ) : chartModel?.empty ? (
+                  <div className="compare-chart-empty">All loaded lines are hidden. Re-enable one below or click `Show all lines`.</div>
+                ) : null}
+              </div>
+              <p className="compare-chart-caption">
+                Scroll horizontally for longer runs. Hover a line to isolate it visually, or switch to delta mode to compare each run against that session&apos;s fastest lap.
+              </p>
             </div>
 
-            <div className="compare-legend-block">
-              <div className="compare-legend-grid">
-                {driverLegend.map((driver) => (
-                  <span key={driver.driverCode} className="pill">
-                    <span style={{ width: 8, height: 8, borderRadius: 999, background: lineStyles.byDriver.get(driver.driverCode), display: "inline-block" }} />
-                    {displayDriverLabel(driver.driverCode, driver.driverName)}
+            <div className="compare-series-controls">
+              {chartSeriesLegend.map((series) => (
+                <button
+                  key={series.key}
+                  type="button"
+                  className={`compare-series-chip ${series.hidden ? "is-muted" : ""} ${hoveredSeriesKey === series.key ? "is-focused" : ""}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() =>
+                    setHiddenSeriesKeys((current) =>
+                      current.includes(series.key) ? current.filter((key) => key !== series.key) : [...current, series.key]
+                    )
+                  }
+                  onMouseEnter={() => setHoveredSeriesKey(series.key)}
+                  onMouseLeave={() => setHoveredSeriesKey((current) => (current === series.key ? null : current))}
+                >
+                  <span className="compare-series-visibility" aria-hidden="true">
+                    {series.hidden ? "○" : "●"}
                   </span>
-                ))}
-              </div>
-              <div className="compare-legend-grid">
-                {sessionLegend.map((session) => (
-                  <span key={session.id} className="pill mono">
-                    <span className="compare-dash-swatch" style={{ background: session.dashArray === "none" ? "var(--ink)" : "transparent" }}>
-                      <svg viewBox="0 0 24 8" aria-hidden="true">
-                        <line x1="0" y1="4" x2="24" y2="4" stroke="currentColor" strokeWidth="2" strokeDasharray={session.dashArray === "none" ? undefined : session.dashArray} />
-                      </svg>
-                    </span>
-                    {session.label}
+                  <span className="compare-series-swatch">
+                    <svg viewBox="0 0 44 10" preserveAspectRatio="none" aria-hidden="true">
+                      <line x1="0" y1="5" x2="44" y2="5" stroke={series.color} strokeWidth="3" strokeDasharray={series.dashArray} strokeLinecap="round" />
+                    </svg>
                   </span>
-                ))}
-              </div>
+                  <span className="compare-series-name">{displayDriverLabel(series.driverCode, series.driverName)}</span>
+                  <span className="compare-series-race mono">{series.sessionLabel}</span>
+                </button>
+              ))}
             </div>
+
           </div>
 
           <div className="session-explorer-grid" style={{ marginBottom: "0.8rem" }}>

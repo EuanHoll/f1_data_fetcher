@@ -524,7 +524,7 @@ export const getCompareDriverPool = query({
     sessionIds: v.array(v.id("sessions"))
   },
   handler: async (ctx, args) => {
-    const uniqueSessionIds = Array.from(new Set(args.sessionIds));
+    const uniqueSessionIds = Array.from(new Set(args.sessionIds)).slice(0, 24);
     const driverDocs = await ctx.db.query("drivers").collect();
     const driverMeta = new Map(driverDocs.map((driver) => [driver.code, driver]));
     const rows = new Map<string, { driverCode: string; sessionCount: number; totalLaps: number; bestLapMs: number | null }>();
@@ -535,7 +535,29 @@ export const getCompareDriverPool = query({
         .withIndex("by_session_metric", (q: any) => q.eq("sessionId", sessionId).eq("metricKey", "driver_pool"))
         .first();
 
-      const summaryRows = summary ? (JSON.parse(summary.payloadJson) as Array<{ driverCode: string; lapCount: number; bestLapMs: number | null }>) : [];
+      let summaryRows = summary ? (JSON.parse(summary.payloadJson) as Array<{ driverCode: string; lapCount: number; bestLapMs: number | null }>) : [];
+
+      if (summaryRows.length === 0) {
+        const laps = await ctx.db.query("laps").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).collect();
+        const fallback = new Map<string, { driverCode: string; lapCount: number; bestLapMs: number | null }>();
+
+        for (const lap of laps) {
+          const current = fallback.get(lap.driverCode) ?? {
+            driverCode: lap.driverCode,
+            lapCount: 0,
+            bestLapMs: null
+          };
+
+          current.lapCount += 1;
+          if (lap.lapTimeMs !== undefined) {
+            current.bestLapMs = current.bestLapMs === null ? lap.lapTimeMs : Math.min(current.bestLapMs, lap.lapTimeMs);
+          }
+
+          fallback.set(lap.driverCode, current);
+        }
+
+        summaryRows = Array.from(fallback.values());
+      }
 
       for (const driver of summaryRows) {
         const row = rows.get(driver.driverCode) ?? {
@@ -639,6 +661,7 @@ export const getMultiSessionComparison = query({
     const series: Array<{
       key: string;
       sessionId: string;
+      sessionBestLapMs: number | null;
       driverCode: string;
       driverName: string | null;
       teamName: string | null;
@@ -703,6 +726,7 @@ export const getMultiSessionComparison = query({
         series.push({
           key,
           sessionId: String(session.id),
+          sessionBestLapMs,
           driverCode,
           driverName: driver?.fullName ?? null,
           teamName: driver?.teamName ?? null,
