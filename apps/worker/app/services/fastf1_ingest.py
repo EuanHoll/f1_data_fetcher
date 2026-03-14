@@ -1,5 +1,6 @@
 import fastf1
 import pandas as pd
+from fastf1.core import DataNotLoadedError
 
 from app.services.fastf1_common import ensure_cache, to_epoch_ms, to_ms
 from app.services.http_client import create_http_session, post_json
@@ -52,7 +53,10 @@ def ingest_fastf1_session(
         session = fastf1.get_session(year, round_number, session_code)
         session.load()
 
-        records = normalize_laps(session.laps)
+        try:
+            records = normalize_laps(session.laps)
+        except DataNotLoadedError:
+            records = []
         print(f"Normalized {len(records)} lap rows")
 
         event_name = str(session.event.EventName)
@@ -105,7 +109,7 @@ def ingest_fastf1_session(
                 "ingestionRunId": run_id,
                 "sessionId": session_id,
                 "success": True,
-                "message": f"Ingested {len(records)} laps from FastF1",
+                "message": f"Ingested {len(records)} laps from FastF1" if records else "No lap data available from FastF1 for this session",
             },
         )
 

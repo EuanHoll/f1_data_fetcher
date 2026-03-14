@@ -71,13 +71,21 @@ export const upsertCatalogYear = mutation({
       }
 
       for (const sessionInput of eventInput.sessions) {
-        const existingSession = await ctx.db
+        let existingSession = await ctx.db
           .query("sessions")
           .withIndex("by_event_session_code", (q) => q.eq("eventId", eventId).eq("sessionCode", sessionInput.sessionCode))
           .first();
 
+        if (!existingSession && sessionInput.sessionCode === "SS") {
+          existingSession = await ctx.db
+            .query("sessions")
+            .withIndex("by_event_session_code", (q) => q.eq("eventId", eventId).eq("sessionCode", "SQ"))
+            .first();
+        }
+
         if (existingSession) {
           await ctx.db.patch(existingSession._id, {
+            sessionCode: sessionInput.sessionCode,
             sessionName: sessionInput.sessionName,
             startsAt: sessionInput.startsAt,
             source: args.source,

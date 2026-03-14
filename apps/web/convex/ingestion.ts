@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 
 function computeCachePolicy(startsAt: number | null) {
   const now = Date.now();
+  const livePrefetchMs = 1000 * 60 * 30;
   if (!startsAt) {
     return {
       mode: "historical",
@@ -11,8 +12,8 @@ function computeCachePolicy(startsAt: number | null) {
     };
   }
 
-  const liveWindowMs = 1000 * 60 * 60 * 12;
-  const isLiveWindow = Math.abs(now - startsAt) < liveWindowMs;
+  const liveLookbackMs = 1000 * 60 * 60 * 12;
+  const isLiveWindow = startsAt <= now + livePrefetchMs && startsAt >= now - liveLookbackMs;
 
   return {
     mode: isLiveWindow ? "live" : "historical",
@@ -33,6 +34,7 @@ export const listSessionsNeedingRefresh = query({
     const eventMap = new Map(events.map((event) => [event._id, event]));
     const seasonMap = new Map(seasons.map((season) => [season._id, season]));
     const now = Date.now();
+    const livePrefetchMs = 1000 * 60 * 30;
 
     return sessions
       .filter((session) => (session.queueStatus ?? "idle") === "idle")
@@ -41,6 +43,8 @@ export const listSessionsNeedingRefresh = query({
         const season = event ? seasonMap.get(event.seasonId) ?? null : null;
         const policy = computeCachePolicy(session.startsAt ?? null);
         const due = !session.lastFetchedAt || !session.cacheExpiresAt || session.cacheExpiresAt <= now;
+        const hasStartedOrIsNear = !session.startsAt || session.startsAt <= now + livePrefetchMs;
+        const canAutoRefresh = policy.mode === "live" ? hasStartedOrIsNear : session.lastFetchedAt !== null && session.ingestStatus === "ready";
 
         return {
           year: season?.year ?? null,
@@ -51,10 +55,11 @@ export const listSessionsNeedingRefresh = query({
           lastFetchedAt: session.lastFetchedAt ?? null,
           cacheExpiresAt: session.cacheExpiresAt ?? null,
           mode: policy.mode,
-          due
+          due,
+          canAutoRefresh
         };
       })
-      .filter((session) => session.mode === args.mode && session.due && session.year !== null && session.round !== null)
+      .filter((session) => session.mode === args.mode && session.due && session.canAutoRefresh && session.year !== null && session.round !== null)
       .sort((a, b) => {
         const leftDueAt = a.cacheExpiresAt ?? 0;
         const rightDueAt = b.cacheExpiresAt ?? 0;

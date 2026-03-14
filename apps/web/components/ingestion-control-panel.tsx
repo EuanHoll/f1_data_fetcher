@@ -151,6 +151,10 @@ export function IngestionControlPanel() {
             <p className="kpi-value" style={{ color: "var(--warn)" }}>{(data.stats as any).queuedSessions ?? 0}</p>
           </article>
           <article className="kpi-card">
+            <p className="kpi-label">Upcoming (Filtered)</p>
+            <p className="kpi-value" style={{ color: "#6b7e94" }}>{(data.stats as any).upcomingSessions ?? 0}</p>
+          </article>
+          <article className="kpi-card">
             <p className="kpi-label">Running (Filtered)</p>
             <p className="kpi-value" style={{ color: "#1a6fb3" }}>{(data.stats as any).runningSessions ?? 0}</p>
           </article>
@@ -197,6 +201,18 @@ export function IngestionControlPanel() {
             </button>
 
             <button
+              className="btn"
+              disabled={isBusy || data.stats.pendingSessions === 0}
+              onClick={() =>
+                void postControl({
+                  action: "ingest_filtered_pending"
+                })
+              }
+            >
+              Ingest All Pending ({data.stats.pendingSessions})
+            </button>
+
+            <button
               className="btn btn-primary"
               disabled={isBusy || data.stats.pendingSessions === 0}
               onClick={() =>
@@ -216,6 +232,9 @@ export function IngestionControlPanel() {
 
         <section className="panel" style={{ marginBottom: "1rem" }}>
           <h2 style={{ marginTop: 0 }}>Pending Sessions</h2>
+          <p style={{ marginTop: 0, color: "#5f7189" }}>
+            This list only shows sessions that are ready to queue now. Future sessions stay out of this table until they are within the ingest window.
+          </p>
           <div className="table-wrap">
             <table className="table table-compact" style={{ minWidth: 860 }}>
               <thead>

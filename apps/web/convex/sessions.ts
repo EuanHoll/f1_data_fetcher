@@ -176,12 +176,14 @@ export const getExplorerData = query({
 
     const pendingRows = filtered.filter((row) => row.ingestStatus === "pending");
     const pendingIdleRows = pendingRows.filter((row) => row.queueStatus === "idle");
+    const upcomingPendingRows = pendingIdleRows.filter((row) => row.startsAt !== null && row.startsAt > now + 1000 * 60 * 30);
+    const actionablePendingRows = pendingIdleRows.filter((row) => !(row.startsAt !== null && row.startsAt > now + 1000 * 60 * 30));
     const failedRows = filtered.filter((row) => row.ingestStatus === "failed");
-    const pendingNeverAttempted = pendingIdleRows.filter((row) => row.lastFetchedAt === null).length;
-    const pendingInProgressOrRetried = pendingIdleRows.length - pendingNeverAttempted;
-    const pendingCacheExpired = pendingIdleRows.filter((row) => row.cacheExpiresAt !== null && row.cacheExpiresAt < now).length;
+    const pendingNeverAttempted = actionablePendingRows.filter((row) => row.lastFetchedAt === null).length;
+    const pendingInProgressOrRetried = actionablePendingRows.length - pendingNeverAttempted;
+    const pendingCacheExpired = actionablePendingRows.filter((row) => row.cacheExpiresAt !== null && row.cacheExpiresAt < now).length;
 
-    const pendingPreview = [...pendingIdleRows]
+    const pendingPreview = [...actionablePendingRows]
       .sort((a, b) => (a.startsAt ?? 0) - (b.startsAt ?? 0))
       .slice(0, 8)
       .map((row) => ({
@@ -198,7 +200,7 @@ export const getExplorerData = query({
       }));
 
     const rows = filtered.slice(offset, offset + limit);
-    const pendingPageRows = pendingIdleRows.slice(offset, offset + limit);
+    const pendingPageRows = actionablePendingRows.slice(offset, offset + limit);
 
     return {
       rows,
@@ -215,17 +217,18 @@ export const getExplorerData = query({
         hasPrevPage: offset > 0
       },
       pendingPagination: {
-        total: pendingIdleRows.length,
+        total: actionablePendingRows.length,
         offset,
         limit,
-        hasNextPage: offset + limit < pendingIdleRows.length,
+        hasNextPage: offset + limit < actionablePendingRows.length,
         hasPrevPage: offset > 0
       },
       pendingRows: pendingPageRows,
       stats: {
         totalSessions: filtered.length,
         readySessions: filtered.filter((r) => r.ingestStatus === "ready").length,
-        pendingSessions: pendingIdleRows.length,
+        pendingSessions: actionablePendingRows.length,
+        upcomingSessions: upcomingPendingRows.length,
         queuedSessions: filtered.filter((r) => r.queueStatus === "queued").length,
         runningSessions: filtered.filter((r) => r.queueStatus === "running").length,
         failedSessions: failedRows.length,

@@ -11,7 +11,7 @@ SESSION_CODE_MAP = {
     "Practice 3": "FP3",
     "Qualifying": "Q",
     "Sprint": "S",
-    "Sprint Shootout": "SQ",
+    "Sprint Shootout": "SS",
     "Sprint Qualifying": "SQ",
     "Race": "R",
     "Testing": "TEST",
