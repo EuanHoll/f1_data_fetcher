@@ -1,6 +1,6 @@
 # Local Self-Hosted Convex Setup (Docker)
 
-This document sets up a local Convex backend + dashboard using Docker Compose for this repository.
+This document sets up a local full stack (Convex backend + dashboard + web app + ingestion worker) using Docker Compose for this repository.
 
 It is intended as the first infrastructure step before building the Next.js frontend and Convex functions.
 
@@ -9,7 +9,11 @@ It is intended as the first infrastructure step before building the Next.js fron
 - Convex backend on `http://127.0.0.1:3210`
 - Convex HTTP actions/site proxy on `http://127.0.0.1:3211`
 - Convex dashboard on `http://127.0.0.1:6791`
-- Local persisted data in a Docker named volume (`convex_data`)
+- Next.js web app on `http://127.0.0.1:3000`
+- Python ingestion control API on `http://127.0.0.1:8080`
+- MinIO S3 API on `http://127.0.0.1:9000`
+- MinIO console on `http://127.0.0.1:9001`
+- Local persisted data in a Docker named volume (`convex_data_s3`)
 
 ## Files added
 
@@ -21,12 +25,18 @@ It is intended as the first infrastructure step before building the Next.js fron
 1. Docker Desktop (or Docker Engine + Compose plugin)
 2. Node.js 20+ (for Convex CLI)
 
-## 1) Start Convex services
+## 1) Start the full stack
 
 From repo root:
 
 ```bash
 docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d
+```
+
+To rebuild app images after Dockerfile/dependency changes:
+
+```bash
+docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d --build
 ```
 
 Or use the convenience scripts (same `--dev` / `--prod` pattern as your website repo):
@@ -87,6 +97,9 @@ npx convex dev
 
 - Backend version endpoint: `http://127.0.0.1:3210/version`
 - Dashboard: `http://127.0.0.1:6791`
+- Web app: `http://127.0.0.1:3000`
+- Worker health: `http://127.0.0.1:8080/health`
+- MinIO health: `http://127.0.0.1:9000/minio/health/live`
 
 ## Common operations
 

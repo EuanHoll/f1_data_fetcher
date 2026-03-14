@@ -31,9 +31,13 @@ export default defineSchema({
     sessionCode: v.string(),
     sessionName: v.string(),
     startsAt: v.optional(v.number()),
-    ingestStatus: v.union(v.literal("pending"), v.literal("ready"), v.literal("failed"))
+    ingestStatus: v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")),
+    lastFetchedAt: v.optional(v.number()),
+    cacheExpiresAt: v.optional(v.number()),
+    source: v.optional(v.string())
   })
     .index("by_event", ["eventId"])
+    .index("by_ingest_status", ["ingestStatus"])
     .index("by_event_session_code", ["eventId", "sessionCode"]),
 
   drivers: defineTable({
@@ -65,6 +69,7 @@ export default defineSchema({
   })
     .index("by_session", ["sessionId"])
     .index("by_session_driver", ["sessionId", "driverCode"])
+    .index("by_session_driver_lap", ["sessionId", "driverCode", "lapNumber"])
     .index("by_session_team", ["sessionId", "teamCode"])
     .index("by_session_stint", ["sessionId", "stint"]),
 

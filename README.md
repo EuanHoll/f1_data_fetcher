@@ -50,6 +50,12 @@ To run Convex function development/codegen for the web app:
 npm run web:convex:dev
 ```
 
+To ingest a FastF1 session into Convex for local web testing:
+
+```shell
+python apps/worker/ingest_fastf1_session.py --year 2025 --round 2 --session R --base-url http://localhost:3000
+```
+
 ### Requirements
 
 The script requires the following Python libraries:

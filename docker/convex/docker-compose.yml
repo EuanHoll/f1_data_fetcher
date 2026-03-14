@@ -1,13 +1,13 @@
 services:
   backend:
-    image: ghcr.io/get-convex/convex-backend:latest
+    image: ghcr.io/get-convex/convex-backend:${CONVEX_VERSION:-latest}
     stop_grace_period: 10s
     stop_signal: SIGINT
     ports:
       - "${PORT:-3210}:3210"
       - "${SITE_PROXY_PORT:-3211}:3211"
     volumes:
-      - convex_data:/convex/data
+      - convex_data_s3:/convex/data
     environment:
       - CONVEX_CLOUD_ORIGIN=${CONVEX_CLOUD_ORIGIN:-http://127.0.0.1:${PORT:-3210}}
       - CONVEX_SITE_ORIGIN=${CONVEX_SITE_ORIGIN:-http://127.0.0.1:${SITE_PROXY_PORT:-3211}}
@@ -35,9 +35,12 @@ services:
       test: curl -f http://localhost:3210/version
       interval: 5s
       start_period: 10s
+    depends_on:
+      minio:
+        condition: service_healthy
 
   dashboard:
-    image: ghcr.io/get-convex/convex-dashboard:latest
+    image: ghcr.io/get-convex/convex-dashboard:${CONVEX_VERSION:-latest}
     stop_grace_period: 10s
     stop_signal: SIGINT
     ports:
@@ -49,5 +52,89 @@ services:
       backend:
         condition: service_healthy
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+      mc mb --ignore-existing local/${S3_STORAGE_EXPORTS_BUCKET:-convex-exports};
+      mc mb --ignore-existing local/${S3_STORAGE_FILES_BUCKET:-convex-files};
+      mc mb --ignore-existing local/${S3_STORAGE_MODULES_BUCKET:-convex-modules};
+      mc mb --ignore-existing local/${S3_STORAGE_SEARCH_BUCKET:-convex-search};
+      mc mb --ignore-existing local/${S3_STORAGE_SNAPSHOT_IMPORTS_BUCKET:-convex-snapshot-imports};
+      exit 0;
+      "
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.dev
+    working_dir: /workspace
+    command: sh -c "npm install && npm run web:dev"
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      - NEXT_PUBLIC_CONVEX_URL=${NEXT_PUBLIC_CONVEX_URL:-http://127.0.0.1:${PORT:-3210}}
+      - CONVEX_SELF_HOSTED_URL=${CONVEX_SELF_HOSTED_URL:-http://backend:3210}
+      - CONVEX_SELF_HOSTED_ADMIN_KEY=${CONVEX_SELF_HOSTED_ADMIN_KEY}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:${WEB_PORT:-3000}}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-local-dev-secret-change-me}
+      - INGEST_API_KEY=${INGEST_API_KEY}
+      - WORKER_API_KEY=${WORKER_API_KEY}
+      - INGEST_WORKER_URL=${INGEST_WORKER_URL:-http://worker:8080}
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ../..:/workspace
+      - web_node_modules:/workspace/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+      worker:
+        condition: service_started
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      - INGEST_API_KEY=${INGEST_API_KEY}
+      - WORKER_API_KEY=${WORKER_API_KEY}
+      - INGEST_BASE_URL=${INGEST_BASE_URL:-http://web:3000}
+      - FASTF1_CACHE_DIR=/data/fastf1-cache
+      - PYTHON_BIN=python
+    volumes:
+      - worker_fastf1_cache:/data/fastf1-cache
+    ports:
+      - "${WORKER_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
 volumes:
-  convex_data:
+  convex_data_s3:
+  web_node_modules:
+  worker_fastf1_cache:
+  minio_data:

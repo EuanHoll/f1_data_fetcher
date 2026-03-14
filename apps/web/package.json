@@ -11,9 +11,12 @@
     "convex:deploy": "convex deploy"
   },
   "dependencies": {
-    "convex": "^1.27.0",
+    "convex": "^1.33.1",
     "next": "14.2.33",
+    "next-auth": "^5.0.0-beta.30",
+    "chart.js": "^4.4.7",
     "react": "18.3.1",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "18.3.1"
   },
   "devDependencies": {

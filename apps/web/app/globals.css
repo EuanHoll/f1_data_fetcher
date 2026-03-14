@@ -1,10 +1,12 @@
 :root {
-  --bg: #f4f7f3;
-  --ink: #142022;
+  --ink: #172033;
+  --paper: #f5f7fb;
   --card: #ffffff;
-  --line: #dce5e7;
-  --accent: #157f63;
-  --accent-soft: #d8f1e9;
+  --line: #dbe3f0;
+  --accent: #e4572e;
+  --accent-soft: #ffe2d7;
+  --ok: #138a36;
+  --warn: #b36d00;
 }
 
 * {
@@ -18,9 +20,17 @@ body {
 }
 
 body {
-  font-family: "Segoe UI", "Inter", sans-serif;
-  background: radial-gradient(circle at 80% -10%, #fde3ca 0%, rgba(253, 227, 202, 0) 30%), var(--bg);
+  font-family: var(--font-space), "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 85% -10%, #ffd8bf 0%, rgba(255, 216, 191, 0) 30%),
+    radial-gradient(circle at 0% 100%, #cfe0ff 0%, rgba(207, 224, 255, 0) 38%),
+    var(--paper);
   color: var(--ink);
+}
+
+code,
+.mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
 }
 
 a {
@@ -29,15 +39,15 @@ a {
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 1rem 1rem 2rem;
 }
 
 .panel {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 1rem;
 }
 
@@ -49,4 +59,185 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid #e6edf7;
+}
+
+.topbar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.7rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.brand-mark {
+  height: 2.2rem;
+  width: 2.2rem;
+  border-radius: 0.65rem;
+  background: var(--accent);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+.btn {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.btn-primary {
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.kpi-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 0.9rem;
+}
+
+.kpi-label {
+  margin: 0;
+  font-size: 0.73rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #62758f;
+}
+
+.kpi-value {
+  margin: 0.3rem 0 0;
+  font-size: 1.55rem;
+  font-weight: 700;
+}
+
+.select-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+}
+
+.select {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 12px;
+  padding: 0.55rem 0.65rem;
+}
+
+.story-chart {
+  border: 1px solid #edf2fa;
+  border-radius: 14px;
+  padding: 0.55rem;
+  background: linear-gradient(180deg, #fff 0%, #f9fbff 100%);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+.table th {
+  text-align: left;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #697d97;
+  border-bottom: 1px solid var(--line);
+  padding: 0.58rem;
+}
+
+.table td {
+  border-bottom: 1px solid #edf1f8;
+  padding: 0.62rem 0.58rem;
+}
+
+.table-compact th {
+  font-size: 0.72rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.table-compact td {
+  padding: 0.5rem 0.55rem;
+  font-size: 0.91rem;
+}
+
+.session-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.session-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.session-explorer-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+}
+
+@media (min-width: 900px) {
+  .grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .select-row {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .session-explorer-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  }
 }

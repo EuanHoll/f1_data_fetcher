@@ -1,3 +1,10 @@
+import { AuthPanel } from "@/components/auth-panel";
+import { ComparisonLab } from "@/components/comparison-lab";
+import { CoveragePanel } from "@/components/coverage-panel";
+import { SavedViewsPanel } from "@/components/saved-views-panel";
+import { SessionExplorer } from "@/components/session-explorer";
+import Link from "next/link";
+
 const checks = [
   {
     label: "Convex Backend URL",
@@ -18,40 +25,47 @@ const checks = [
 
 export default function HomePage() {
   return (
-    <main className="container" style={{ paddingTop: "2rem", paddingBottom: "2rem" }}>
-      <section className="panel" style={{ marginBottom: "1rem" }}>
-        <p style={{ margin: 0, fontSize: "0.8rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#6b7e81" }}>
-          F1 Data Fetcher Web Migration
-        </p>
-        <h1 style={{ margin: "0.4rem 0 0.5rem", fontSize: "2rem" }}>F1 Pace Lab - Implementation Kickoff</h1>
-        <p style={{ margin: 0, color: "#314144" }}>
-          This app is now wired for local self-hosted Convex. Next step is to push Convex functions and build the first real session explorer query flow.
-        </p>
-      </section>
-
-      <section className="panel" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>Environment Health</h2>
-        <div style={{ display: "grid", gap: "0.6rem" }}>
-          {checks.map((check) => (
-            <div key={check.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--line)", borderRadius: "10px", padding: "0.65rem 0.8rem" }}>
-              <strong>{check.label}</strong>
-              <span className="pill" style={{ background: check.good ? "var(--accent-soft)" : "#fff0f0", borderColor: check.good ? "#b6e5d6" : "#f2c7c7" }}>
-                <span style={{ color: check.good ? "#14624d" : "#9f2b2b", fontWeight: 700 }}>{check.good ? "OK" : "Needs setup"}</span>
-                <span style={{ color: "#526467" }}>{check.value}</span>
-              </span>
+    <>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <div className="brand-mark">PL</div>
+            <div>
+              <p style={{ margin: 0, fontWeight: 700, lineHeight: 1.2 }}>F1 Pace Lab</p>
+              <p style={{ margin: 0, color: "#6d7f95", fontSize: "0.83rem" }}>Session Explorer</p>
             </div>
-          ))}
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <Link className="btn" href="/ingestion">
+              Ingestion Control
+            </Link>
+            {checks.map((check) => (
+              <span key={check.label} className="pill" style={{ background: check.good ? "#effaf3" : "#fff3f3" }}>
+                <span style={{ color: check.good ? "#157647" : "#b03a3a", fontWeight: 700 }}>{check.good ? "OK" : "Missing"}</span>
+                <span>{check.label}</span>
+              </span>
+            ))}
+          </div>
         </div>
-      </section>
+      </header>
 
-      <section className="panel">
-        <h2 style={{ marginTop: 0 }}>What is ready</h2>
-        <ul style={{ margin: 0, paddingLeft: "1.2rem", display: "grid", gap: "0.4rem" }}>
-          <li>Next.js app scaffold under <code>apps/web</code></li>
-          <li>Convex schema and initial queries under <code>apps/web/convex</code></li>
-          <li>Workspace scripts to run web and Convex locally from repo root</li>
-        </ul>
-      </section>
-    </main>
+      <main className="container">
+        <section className="panel" style={{ marginBottom: "1rem" }}>
+          <p style={{ margin: 0, fontSize: "0.8rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "#6b7e81" }}>
+            Open analytics for everyone, account features when you want them
+          </p>
+          <h1 style={{ margin: "0.4rem 0 0.5rem", fontSize: "2rem" }}>F1 Pace Lab</h1>
+          <p style={{ margin: 0, color: "#314144" }}>
+            Explore session data in the browser without logging in. Sign in only when you want personal saved views and shareable analysis presets.
+          </p>
+        </section>
+
+        <SessionExplorer />
+        <ComparisonLab />
+        <CoveragePanel />
+        <AuthPanel />
+        <SavedViewsPanel />
+      </main>
+    </>
   );
 }

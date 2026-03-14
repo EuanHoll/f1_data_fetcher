@@ -2,6 +2,7 @@
 
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ReactNode, useMemo } from "react";
+import { SessionProvider } from "next-auth/react";
 
 type Props = {
   children: ReactNode;
@@ -17,8 +18,12 @@ export function ConvexClientProvider({ children }: Props) {
   }, []);
 
   if (!client) {
-    return <>{children}</>;
+    return <SessionProvider>{children}</SessionProvider>;
   }
 
-  return <ConvexProvider client={client}>{children}</ConvexProvider>;
+  return (
+    <SessionProvider>
+      <ConvexProvider client={client}>{children}</ConvexProvider>
+    </SessionProvider>
+  );
 }
