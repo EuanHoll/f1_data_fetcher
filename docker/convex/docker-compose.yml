@@ -192,6 +192,8 @@ services:
         condition: service_completed_successfully
       valkey:
         condition: service_healthy
+      web:
+        condition: service_started
 
   worker-bootstrap:
     build:

@@ -125,3 +125,34 @@ export const listActive = query({
       }));
   }
 });
+
+export const reconcileMissingActiveJobs = mutation({
+  args: {
+    activeJobIds: v.array(v.string()),
+    message: v.optional(v.string())
+  },
+  handler: async (ctx, args) => {
+    const jobs = await ctx.db.query("workerJobs").order("desc").take(100);
+    const activeSet = new Set(args.activeJobIds);
+    const now = Date.now();
+    let updated = 0;
+
+    for (const job of jobs) {
+      if (job.status !== "queued" && job.status !== "running") {
+        continue;
+      }
+      if (activeSet.has(job.jobId)) {
+        continue;
+      }
+
+      await ctx.db.patch(job._id, {
+        status: "failed",
+        completedAt: now,
+        lastError: args.message ?? "Worker job no longer exists in the queue"
+      });
+      updated += 1;
+    }
+
+    return { updated };
+  }
+});
