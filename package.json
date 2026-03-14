@@ -1,5 +1,5 @@
 {
-  "name": "f1_data_fetcher",
+  "name": "f1-pace-lab",
   "private": true,
   "workspaces": [
     "apps/web"

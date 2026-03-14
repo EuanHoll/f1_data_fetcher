@@ -2,7 +2,7 @@
 
 ## Why this exists
 
-This repository currently contains a local desktop GUI that fetches Formula 1 session data using `fastf1` and saves lap data as CSV.
+This repository now centers on a self-hosted web analytics platform backed by Convex, Next.js, and a Python FastF1 ingestion worker.
 
 We are evolving it into a self-hosted web product that lets users explore, compare, and share F1 performance analysis online.
 
@@ -14,7 +14,7 @@ The goal is to move from a single-user data export tool to a multi-user analytic
 
 - Input: year, race number, session type
 - Action: fetch one session via `fastf1`
-- Output: CSV file with laps
+- Output: Convex-backed session and lap data for the web app
 
 ### Target state (web)
 
