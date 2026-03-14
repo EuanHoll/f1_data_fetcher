@@ -31,6 +31,91 @@ def normalize_laps(df):
     return records
 
 
+def normalize_team_color(value):
+    if pd.isna(value) or value is None:
+        return None
+    color = str(value).strip().lstrip("#")
+    if not color:
+        return None
+    return f"#{color.upper()}"
+
+
+def parse_optional_int(value):
+    if pd.isna(value) or value is None:
+        return None
+    try:
+        return int(str(value))
+    except Exception:
+        return None
+
+
+def normalize_participants(session):
+    try:
+        results = session.results
+    except Exception:
+        results = None
+
+    participants = []
+    seen_driver_codes = set()
+
+    if results is not None:
+        try:
+            iterable = results.to_dict("records")
+        except Exception:
+            iterable = []
+
+        for row in iterable:
+            driver_code = row.get("Abbreviation") or row.get("Driver")
+            if pd.isna(driver_code) or not driver_code:
+                continue
+
+            driver_code = str(driver_code).strip().upper()
+            if not driver_code or driver_code in seen_driver_codes:
+                continue
+
+            seen_driver_codes.add(driver_code)
+            team_name = None if pd.isna(row.get("TeamName")) else str(row.get("TeamName"))
+            participant = {
+                "driverCode": driver_code,
+                "fullName": None if pd.isna(row.get("FullName")) else str(row.get("FullName")),
+                "driverNumber": parse_optional_int(row.get("DriverNumber")),
+                "teamCode": team_name,
+                "teamName": team_name,
+                "teamColorHex": normalize_team_color(row.get("TeamColor")),
+            }
+            participants.append({key: value for key, value in participant.items() if value is not None})
+
+    if participants:
+        return participants
+
+    laps = getattr(session, "laps", None)
+    if laps is None:
+        return participants
+
+    try:
+        unique_rows = laps[["Driver", "Team"]].dropna(subset=["Driver"]).drop_duplicates().to_dict("records")
+    except Exception:
+        unique_rows = []
+
+    for row in unique_rows:
+        driver_code = row.get("Driver")
+        if pd.isna(driver_code) or not driver_code:
+            continue
+        driver_code = str(driver_code).strip().upper()
+        if not driver_code or driver_code in seen_driver_codes:
+            continue
+        seen_driver_codes.add(driver_code)
+        team_name = None if pd.isna(row.get("Team")) else str(row.get("Team"))
+        participant = {
+            "driverCode": driver_code,
+            "teamCode": team_name,
+            "teamName": team_name,
+        }
+        participants.append({key: value for key, value in participant.items() if value is not None})
+
+    return participants
+
+
 def ingest_fastf1_session(
     base_url: str,
     api_key: str,
@@ -57,7 +142,9 @@ def ingest_fastf1_session(
             records = normalize_laps(session.laps)
         except DataNotLoadedError:
             records = []
+        participants = normalize_participants(session)
         print(f"Normalized {len(records)} lap rows")
+        print(f"Normalized {len(participants)} participants")
 
         event_name = str(session.event.EventName)
         location = str(session.event.Location)
@@ -85,6 +172,19 @@ def ingest_fastf1_session(
         session_id = upsert["sessionId"]
         run_id = upsert["ingestionRunId"]
         print(f"Session id: {session_id}, ingestion run: {run_id}")
+
+        if participants:
+            participant_result = post_json(
+                http_session,
+                phase_url,
+                api_key,
+                {"phase": "push_participants", "participants": participants},
+            )
+            print(
+                "Participants: "
+                f"drivers inserted={participant_result.get('driverInserts')} updated={participant_result.get('driverUpdates')} "
+                f"teams inserted={participant_result.get('teamInserts')} updated={participant_result.get('teamUpdates')}"
+            )
 
         inserted = 0
         updated = 0

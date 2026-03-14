@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 
+const DRIVER_POOL_METRIC_KEY = "driver_pool";
+
 const lapValidator = v.object({
   driverCode: v.string(),
   teamCode: v.optional(v.string()),
@@ -15,6 +17,15 @@ const lapValidator = v.object({
   isPitOutLap: v.optional(v.boolean())
 });
 
+const participantValidator = v.object({
+  driverCode: v.string(),
+  fullName: v.optional(v.string()),
+  driverNumber: v.optional(v.number()),
+  teamCode: v.optional(v.string()),
+  teamName: v.optional(v.string()),
+  teamColorHex: v.optional(v.string())
+});
+
 function computeTtlMs(startsAt: number | undefined) {
   if (!startsAt) {
     return 1000 * 60 * 60 * 24 * 7;
@@ -23,6 +34,46 @@ function computeTtlMs(startsAt: number | undefined) {
   const liveWindowMs = 1000 * 60 * 60 * 12;
   const isLiveWindow = Math.abs(now - startsAt) < liveWindowMs;
   return isLiveWindow ? 1000 * 60 * 2 : 1000 * 60 * 60 * 24 * 7;
+}
+
+async function upsertSessionSummary(ctx: any, sessionId: any, metricKey: string, payload: unknown) {
+  const existing = await ctx.db
+    .query("sessionSummaries")
+    .withIndex("by_session_metric", (q: any) => q.eq("sessionId", sessionId).eq("metricKey", metricKey))
+    .first();
+
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      payloadJson: JSON.stringify(payload),
+      updatedAt: Date.now()
+    });
+    return;
+  }
+
+  await ctx.db.insert("sessionSummaries", {
+    sessionId,
+    metricKey,
+    payloadJson: JSON.stringify(payload),
+    updatedAt: Date.now()
+  });
+}
+
+async function getSessionDriverPool(ctx: any, sessionId: any) {
+  const existing = await ctx.db
+    .query("sessionSummaries")
+    .withIndex("by_session_metric", (q: any) => q.eq("sessionId", sessionId).eq("metricKey", DRIVER_POOL_METRIC_KEY))
+    .first();
+
+  if (!existing) {
+    return [] as Array<{ driverCode: string; lapCount: number; bestLapMs: number | null }>;
+  }
+
+  try {
+    const parsed = JSON.parse(existing.payloadJson);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [] as Array<{ driverCode: string; lapCount: number; bestLapMs: number | null }>;
+  }
 }
 
 export const upsertSessionContext = mutation({
@@ -108,6 +159,8 @@ export const upsertSessionContext = mutation({
       });
     }
 
+    await upsertSessionSummary(ctx, sessionId, DRIVER_POOL_METRIC_KEY, []);
+
     const ingestionRunId = await ctx.db.insert("ingestionRuns", {
       source: args.source,
       sourceRevision: args.sourceRevision,
@@ -133,8 +186,20 @@ export const ingestLapsBatch = mutation({
   handler: async (ctx, args) => {
     let inserted = 0;
     let updated = 0;
+    const batchSummary = new Map<string, { driverCode: string; lapCount: number; bestLapMs: number | null }>();
 
     for (const lap of args.laps) {
+      const driverSummary = batchSummary.get(lap.driverCode) ?? {
+        driverCode: lap.driverCode,
+        lapCount: 0,
+        bestLapMs: null
+      };
+      driverSummary.lapCount += 1;
+      if (lap.lapTimeMs !== undefined) {
+        driverSummary.bestLapMs = driverSummary.bestLapMs === null ? lap.lapTimeMs : Math.min(driverSummary.bestLapMs, lap.lapTimeMs);
+      }
+      batchSummary.set(lap.driverCode, driverSummary);
+
       const existing = await ctx.db
         .query("laps")
         .withIndex("by_session_driver_lap", (q) =>
@@ -174,10 +239,105 @@ export const ingestLapsBatch = mutation({
       }
     }
 
+    const currentSummary = await getSessionDriverPool(ctx, args.sessionId);
+    const mergedSummary = new Map(currentSummary.map((row) => [row.driverCode, row]));
+    for (const row of batchSummary.values()) {
+      const current = mergedSummary.get(row.driverCode) ?? {
+        driverCode: row.driverCode,
+        lapCount: 0,
+        bestLapMs: null
+      };
+      current.lapCount += row.lapCount;
+      current.bestLapMs =
+        current.bestLapMs === null
+          ? row.bestLapMs
+          : row.bestLapMs === null
+            ? current.bestLapMs
+            : Math.min(current.bestLapMs, row.bestLapMs);
+      mergedSummary.set(row.driverCode, current);
+    }
+
+    await upsertSessionSummary(
+      ctx,
+      args.sessionId,
+      DRIVER_POOL_METRIC_KEY,
+      Array.from(mergedSummary.values()).sort((a, b) => b.lapCount - a.lapCount || a.driverCode.localeCompare(b.driverCode))
+    );
+
     return {
       inserted,
       updated,
       total: args.laps.length
+    };
+  }
+});
+
+export const upsertParticipantsBatch = mutation({
+  args: {
+    participants: v.array(participantValidator)
+  },
+  handler: async (ctx, args) => {
+    let driverInserts = 0;
+    let driverUpdates = 0;
+    let teamInserts = 0;
+    let teamUpdates = 0;
+
+    for (const participant of args.participants) {
+      const existingDriver = await ctx.db
+        .query("drivers")
+        .withIndex("by_code", (q) => q.eq("code", participant.driverCode))
+        .first();
+
+      if (existingDriver) {
+        await ctx.db.patch(existingDriver._id, {
+          fullName: participant.fullName ?? existingDriver.fullName,
+          number: participant.driverNumber ?? existingDriver.number,
+          teamName: participant.teamName ?? participant.teamCode ?? existingDriver.teamName
+        });
+        driverUpdates += 1;
+      } else if (participant.fullName) {
+        await ctx.db.insert("drivers", {
+          code: participant.driverCode,
+          fullName: participant.fullName,
+          number: participant.driverNumber,
+          teamName: participant.teamName ?? participant.teamCode
+        });
+        driverInserts += 1;
+      }
+
+      const resolvedTeamCode = participant.teamCode ?? participant.teamName;
+      const resolvedTeamName = participant.teamName ?? participant.teamCode;
+      if (!resolvedTeamCode || !resolvedTeamName) {
+        continue;
+      }
+
+      const existingTeam = await ctx.db
+        .query("teams")
+        .withIndex("by_code", (q) => q.eq("code", resolvedTeamCode))
+        .first();
+
+      if (existingTeam) {
+        await ctx.db.patch(existingTeam._id, {
+          name: resolvedTeamName,
+          colorHex: participant.teamColorHex ?? existingTeam.colorHex
+        });
+        teamUpdates += 1;
+      } else {
+        await ctx.db.insert("teams", {
+          code: resolvedTeamCode,
+          name: resolvedTeamName,
+          colorHex: participant.teamColorHex
+        });
+        teamInserts += 1;
+      }
+    }
+
+    return {
+      driverInserts,
+      driverUpdates,
+      teamInserts,
+      teamUpdates,
+      total: args.participants.length
     };
   }
 });

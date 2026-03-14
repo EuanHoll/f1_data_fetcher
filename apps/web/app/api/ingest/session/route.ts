@@ -63,6 +63,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, ...result });
     }
 
+    if (phase === "push_participants") {
+      const participants = Array.isArray(body.participants) ? body.participants : [];
+      const result = await client.mutation(api.ingest.upsertParticipantsBatch, {
+        participants: participants as any
+      });
+
+      return NextResponse.json({ ok: true, ...result });
+    }
+
     if (phase === "finalize") {
       const result = await client.mutation(api.ingest.finalizeSessionIngestion, {
         ingestionRunId: body.ingestionRunId as any,

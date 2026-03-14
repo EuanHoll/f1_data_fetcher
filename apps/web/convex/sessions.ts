@@ -423,6 +423,13 @@ function stdDev(values: number[]) {
   return Math.round(Math.sqrt(variance));
 }
 
+function average(values: number[]) {
+  if (values.length === 0) {
+    return null;
+  }
+  return Math.round(values.reduce((acc, value) => acc + value, 0) / values.length);
+}
+
 export const getSessionDrivers = query({
   args: {
     sessionId: v.id("sessions")
@@ -512,14 +519,257 @@ export const getSessionComparison = query({
   }
 });
 
+export const getCompareDriverPool = query({
+  args: {
+    sessionIds: v.array(v.id("sessions"))
+  },
+  handler: async (ctx, args) => {
+    const uniqueSessionIds = Array.from(new Set(args.sessionIds));
+    const driverDocs = await ctx.db.query("drivers").collect();
+    const driverMeta = new Map(driverDocs.map((driver) => [driver.code, driver]));
+    const rows = new Map<string, { driverCode: string; sessionCount: number; totalLaps: number; bestLapMs: number | null }>();
+
+    for (const sessionId of uniqueSessionIds) {
+      const summary = await ctx.db
+        .query("sessionSummaries")
+        .withIndex("by_session_metric", (q: any) => q.eq("sessionId", sessionId).eq("metricKey", "driver_pool"))
+        .first();
+
+      const summaryRows = summary ? (JSON.parse(summary.payloadJson) as Array<{ driverCode: string; lapCount: number; bestLapMs: number | null }>) : [];
+
+      for (const driver of summaryRows) {
+        const row = rows.get(driver.driverCode) ?? {
+          driverCode: driver.driverCode,
+          sessionCount: 0,
+          totalLaps: 0,
+          bestLapMs: null
+        };
+
+        row.sessionCount += 1;
+        row.totalLaps += driver.lapCount;
+        row.bestLapMs = row.bestLapMs === null ? driver.bestLapMs : driver.bestLapMs === null ? row.bestLapMs : Math.min(row.bestLapMs, driver.bestLapMs);
+
+        rows.set(driver.driverCode, row);
+      }
+    }
+
+    return Array.from(rows.values())
+      .map((row) => ({
+        ...row,
+        driverName: driverMeta.get(row.driverCode)?.fullName ?? null,
+        teamName: driverMeta.get(row.driverCode)?.teamName ?? null
+      }))
+      .sort((a, b) => {
+        if (b.sessionCount !== a.sessionCount) {
+          return b.sessionCount - a.sessionCount;
+        }
+        if (b.totalLaps !== a.totalLaps) {
+          return b.totalLaps - a.totalLaps;
+        }
+        return a.driverCode.localeCompare(b.driverCode);
+      });
+  }
+});
+
+export const getMultiSessionComparison = query({
+  args: {
+    sessionIds: v.array(v.id("sessions")),
+    driverCodes: v.array(v.string()),
+    maxPoints: v.optional(v.number())
+  },
+  handler: async (ctx, args) => {
+    const uniqueSessionIds = Array.from(new Set(args.sessionIds)).slice(0, 12);
+    const uniqueDriverCodes = Array.from(new Set(args.driverCodes.map((driverCode) => driverCode.trim().toUpperCase()).filter(Boolean)));
+    const maxPoints = Math.min(args.maxPoints ?? 80, 160);
+    const driverDocs = await ctx.db.query("drivers").collect();
+    const driverMeta = new Map(driverDocs.map((driver) => [driver.code, driver]));
+
+    if (uniqueSessionIds.length === 0 || uniqueDriverCodes.length === 0) {
+      return {
+        sessions: [],
+        summaries: [],
+        aggregates: [],
+        series: []
+      };
+    }
+
+    const sessionDocs = await Promise.all(uniqueSessionIds.map((sessionId) => ctx.db.get(sessionId)));
+    const validSessionDocs = sessionDocs.filter((session): session is NonNullable<typeof session> => session !== null);
+    const eventDocs = await Promise.all(validSessionDocs.map((session) => ctx.db.get(session.eventId)));
+    const seasonDocs = await Promise.all(
+      eventDocs.map((event) => (event ? ctx.db.get(event.seasonId) : Promise.resolve(null)))
+    );
+
+    const sessionMeta = validSessionDocs
+      .map((session, index) => {
+        const event = eventDocs[index];
+        const season = seasonDocs[index];
+        return {
+          id: session._id,
+          sessionCode: session.sessionCode,
+          sessionName: session.sessionName,
+          startsAt: session.startsAt ?? null,
+          eventName: event?.name ?? "Unknown Event",
+          location: event?.location ?? null,
+          round: event?.round ?? null,
+          seasonYear: season?.year ?? null
+        };
+      })
+      .sort((a, b) => (a.startsAt ?? 0) - (b.startsAt ?? 0));
+
+    const summaries: Array<{
+      key: string;
+      sessionId: string;
+      sessionLabel: string;
+      driverCode: string;
+      driverName: string | null;
+      teamName: string | null;
+      eventName: string;
+      location: string | null;
+      seasonYear: number | null;
+      round: number | null;
+      sessionCode: string;
+      lapCount: number;
+      bestLapMs: number | null;
+      medianLapMs: number | null;
+      averageLapMs: number | null;
+      stdDevMs: number | null;
+      deltaToSessionBestMs: number | null;
+    }> = [];
+    const series: Array<{
+      key: string;
+      sessionId: string;
+      driverCode: string;
+      driverName: string | null;
+      teamName: string | null;
+      sessionLabel: string;
+      eventName: string;
+      location: string | null;
+      seasonYear: number | null;
+      round: number | null;
+      sessionCode: string;
+      points: Array<{ lapNumber: number; lapTimeMs: number; progressRatio: number }>;
+    }> = [];
+
+    for (const session of sessionMeta) {
+      const sessionBestByAnyDriver = await ctx.db.query("laps").withIndex("by_session", (q) => q.eq("sessionId", session.id as any)).collect();
+      const sessionBestLapMs = sessionBestByAnyDriver
+        .map((lap) => lap.lapTimeMs)
+        .filter((value): value is number => value !== undefined)
+        .reduce<number | null>((best, value) => (best === null ? value : Math.min(best, value)), null);
+
+      for (const driverCode of uniqueDriverCodes) {
+        const driverLaps = await ctx.db
+          .query("laps")
+          .withIndex("by_session_driver", (q) => q.eq("sessionId", session.id as any).eq("driverCode", driverCode))
+          .collect();
+
+        const validLaps = driverLaps
+          .filter((lap) => lap.lapTimeMs !== undefined)
+          .sort((a, b) => a.lapNumber - b.lapNumber);
+
+        if (validLaps.length === 0) {
+          continue;
+        }
+
+        const lapTimes = validLaps.map((lap) => lap.lapTimeMs as number);
+        const sampled = validLaps.slice(0, maxPoints);
+        const denominator = Math.max(sampled.length - 1, 1);
+        const sessionLabel = `${session.seasonYear ?? "-"} ${session.sessionCode} ${session.eventName}`;
+        const key = `${session.id}-${driverCode}`;
+        const bestLapMs = Math.min(...lapTimes);
+        const driver = driverMeta.get(driverCode);
+
+        summaries.push({
+          key,
+          sessionId: String(session.id),
+          sessionLabel,
+          driverCode,
+          driverName: driver?.fullName ?? null,
+          teamName: driver?.teamName ?? null,
+          eventName: session.eventName,
+          location: session.location,
+          seasonYear: session.seasonYear,
+          round: session.round,
+          sessionCode: session.sessionCode,
+          lapCount: validLaps.length,
+          bestLapMs,
+          medianLapMs: median(lapTimes),
+          averageLapMs: average(lapTimes),
+          stdDevMs: stdDev(lapTimes),
+          deltaToSessionBestMs: sessionBestLapMs === null ? null : bestLapMs - sessionBestLapMs
+        });
+
+        series.push({
+          key,
+          sessionId: String(session.id),
+          driverCode,
+          driverName: driver?.fullName ?? null,
+          teamName: driver?.teamName ?? null,
+          sessionLabel,
+          eventName: session.eventName,
+          location: session.location,
+          seasonYear: session.seasonYear,
+          round: session.round,
+          sessionCode: session.sessionCode,
+          points: sampled.map((lap, index) => ({
+            lapNumber: lap.lapNumber,
+            lapTimeMs: lap.lapTimeMs as number,
+            progressRatio: sampled.length === 1 ? 1 : index / denominator
+          }))
+        });
+      }
+    }
+
+    const aggregates = uniqueDriverCodes
+      .map((driverCode) => {
+        const rows = summaries.filter((summary) => summary.driverCode === driverCode);
+        if (rows.length === 0) {
+          return null;
+        }
+
+        const bestLaps = rows.map((row) => row.bestLapMs).filter((value): value is number => value !== null);
+        const medians = rows.map((row) => row.medianLapMs).filter((value): value is number => value !== null);
+        const deltas = rows.map((row) => row.deltaToSessionBestMs).filter((value): value is number => value !== null);
+
+        return {
+          driverCode,
+          driverName: rows.find((row) => row.driverName)?.driverName ?? null,
+          teamName: rows.find((row) => row.teamName)?.teamName ?? null,
+          sessionCount: rows.length,
+          totalLaps: rows.reduce((acc, row) => acc + row.lapCount, 0),
+          bestLapMs: bestLaps.length > 0 ? Math.min(...bestLaps) : null,
+          medianOfMediansMs: median(medians),
+          averageDeltaToSessionBestMs: average(deltas)
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+      .sort((a, b) => {
+        const left = a.medianOfMediansMs ?? Number.MAX_SAFE_INTEGER;
+        const right = b.medianOfMediansMs ?? Number.MAX_SAFE_INTEGER;
+        if (left !== right) {
+          return left - right;
+        }
+        return a.driverCode.localeCompare(b.driverCode);
+      });
+
+    return {
+      sessions: sessionMeta,
+      summaries,
+      aggregates,
+      series
+    };
+  }
+});
+
 export const getReadySessionsForCompare = query({
   args: {
-    seasonYear: v.optional(v.number()),
+    seasonYears: v.optional(v.array(v.number())),
     sessionCode: v.optional(v.string()),
     limit: v.optional(v.number())
   },
   handler: async (ctx, args) => {
-    const limit = Math.min(args.limit ?? 300, 800);
+    const limit = Math.min(args.limit ?? 1200, 2500);
     const readySessions = await ctx.db.query("sessions").withIndex("by_ingest_status", (q) => q.eq("ingestStatus", "ready")).collect();
     const events = await ctx.db.query("events").collect();
     const seasons = await ctx.db.query("seasons").collect();
@@ -539,6 +789,7 @@ export const getReadySessionsForCompare = query({
           sessionName: session.sessionName,
           startsAt: session.startsAt ?? null,
           eventName: event?.name ?? "Unknown Event",
+          location: event?.location ?? null,
           round: event?.round ?? null,
           seasonYear: season?.year ?? null,
           hasLaps: firstLap.length > 0
@@ -547,7 +798,7 @@ export const getReadySessionsForCompare = query({
     );
 
     const filtered = rows
-      .filter((row) => (args.seasonYear === undefined ? true : row.seasonYear === args.seasonYear))
+      .filter((row) => (args.seasonYears === undefined || args.seasonYears.length === 0 ? true : args.seasonYears.includes(row.seasonYear ?? -1)))
       .filter((row) => (args.sessionCode === undefined ? true : row.sessionCode === args.sessionCode))
       .filter((row) => row.hasLaps)
       .sort((a, b) => (b.startsAt ?? 0) - (a.startsAt ?? 0))
