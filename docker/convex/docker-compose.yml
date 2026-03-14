@@ -85,6 +85,16 @@ services:
       exit 0;
       "
 
+  valkey:
+    image: valkey/valkey:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   web:
     build:
       context: ../..
@@ -111,7 +121,7 @@ services:
       backend:
         condition: service_healthy
       worker:
-        condition: service_started
+        condition: service_healthy
 
   convex-dev:
     build:
@@ -136,21 +146,52 @@ services:
     build:
       context: ../..
       dockerfile: apps/worker/Dockerfile
+    command: ["uv", "run", "uvicorn", "worker_api:app", "--host", "0.0.0.0", "--port", "8080"]
     environment:
       - INGEST_API_KEY=${INGEST_API_KEY}
       - WORKER_API_KEY=${WORKER_API_KEY}
       - INGEST_BASE_URL=${INGEST_BASE_URL:-http://web:3000}
       - FASTF1_CACHE_DIR=/data/fastf1-cache
-      - PYTHON_BIN=python
+      - VALKEY_URL=${VALKEY_URL:-redis://valkey:6379/0}
+      - RQ_QUEUE_NAME=${RQ_QUEUE_NAME:-ingest}
     volumes:
       - worker_fastf1_cache:/data/fastf1-cache
     ports:
       - "${WORKER_PORT:-8080}:8080"
+    healthcheck:
+      test: curl -f http://localhost:8080/health
+      interval: 5s
+      timeout: 5s
+      retries: 20
     depends_on:
       backend:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+
+  worker-runner:
+    build:
+      context: ../..
+      dockerfile: apps/worker/Dockerfile
+    command: ["uv", "run", "python", "run_worker.py"]
+    environment:
+      - INGEST_API_KEY=${INGEST_API_KEY}
+      - WORKER_API_KEY=${WORKER_API_KEY}
+      - INGEST_BASE_URL=${INGEST_BASE_URL:-http://web:3000}
+      - FASTF1_CACHE_DIR=/data/fastf1-cache
+      - VALKEY_URL=${VALKEY_URL:-redis://valkey:6379/0}
+      - RQ_QUEUE_NAME=${RQ_QUEUE_NAME:-ingest}
+    volumes:
+      - worker_fastf1_cache:/data/fastf1-cache
+    depends_on:
+      backend:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
 
 volumes:
   convex_data_s3:

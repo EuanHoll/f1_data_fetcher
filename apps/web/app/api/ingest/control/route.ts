@@ -56,7 +56,7 @@ async function enqueueOnWorker(
 
   const result = (await response.json()) as Record<string, unknown>;
   if (!response.ok) {
-    throw new Error(String(result.error ?? "Failed to enqueue ingest job"));
+    throw new Error(String(result.error ?? result.detail ?? "Failed to enqueue ingest job"));
   }
 
   return result;
