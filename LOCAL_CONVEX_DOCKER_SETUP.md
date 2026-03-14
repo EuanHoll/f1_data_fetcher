@@ -47,6 +47,8 @@ Then run the one-shot catalog bootstrap when needed:
 docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml --profile bootstrap run --rm worker-bootstrap
 ```
 
+The default stack also runs an automatic ingestion scheduler that checks for live or expired sessions every 2 minutes and queues refresh jobs.
+
 Or use the convenience scripts (same `--dev` / `--prod` pattern as your website repo):
 
 ```bash

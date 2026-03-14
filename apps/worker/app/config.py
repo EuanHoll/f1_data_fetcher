@@ -34,3 +34,15 @@ def get_fastf1_cache_dir(default: str = "/data/fastf1-cache"):
 
 def get_catalog_year_range():
     return int(os.environ.get("CATALOG_START_YEAR", "2018")), int(os.environ.get("CATALOG_END_YEAR", str(datetime.now(timezone.utc).year + 1)))
+
+
+def get_auto_refresh_interval_seconds():
+    return int(os.environ.get("AUTO_REFRESH_INTERVAL_SECONDS", "120"))
+
+
+def get_auto_refresh_live_limit():
+    return int(os.environ.get("AUTO_REFRESH_LIVE_LIMIT", "6"))
+
+
+def get_auto_refresh_historical_limit():
+    return int(os.environ.get("AUTO_REFRESH_HISTORICAL_LIMIT", "12"))

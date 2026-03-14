@@ -17,12 +17,12 @@ const lapValidator = v.object({
 
 function computeTtlMs(startsAt: number | undefined) {
   if (!startsAt) {
-    return 1000 * 60 * 60 * 24 * 30;
+    return 1000 * 60 * 60 * 24 * 7;
   }
   const now = Date.now();
-  const liveWindowMs = 1000 * 60 * 60 * 6;
+  const liveWindowMs = 1000 * 60 * 60 * 12;
   const isLiveWindow = Math.abs(now - startsAt) < liveWindowMs;
-  return isLiveWindow ? 1000 * 60 * 5 : 1000 * 60 * 60 * 24 * 30;
+  return isLiveWindow ? 1000 * 60 * 2 : 1000 * 60 * 60 * 24 * 7;
 }
 
 export const upsertSessionContext = mutation({

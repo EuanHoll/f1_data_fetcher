@@ -37,6 +37,8 @@ docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml
 
 The single `worker-runner` container starts multiple RQ worker processes internally. You can increase or decrease ingestion concurrency with `WORKER_CONCURRENCY`.
 
+The stack also runs `worker-scheduler`, which checks every couple of minutes for live sessions or expired historical sessions that need refreshing and queues them automatically.
+
 The worker uses `uv` with dependency metadata in `apps/worker/pyproject.toml` and a committed lockfile at `apps/worker/uv.lock` so installs stay reproducible.
 
 On an empty local environment, Docker also runs a one-shot catalog bootstrap so the ingestion UI has seasons and sessions to work with by default.
@@ -68,10 +70,10 @@ Optional args:
 2. Push lap rows in batches
 3. Finalize ingestion run and update session cache metadata
 
-Historical sessions stay cached in Convex with long TTL. Live-window sessions get short TTL and refresh more frequently.
+Historical sessions stay cached in Convex with a 7-day TTL. Live-window sessions use a 2-minute TTL and are automatically requeued by the scheduler while they are active.
 
 ## Suggested schedule
 
 - Catalog sync (`app.scripts.sync_catalog`): every 6-24 hours
-- Live weekend session ingest (`app.scripts.ingest_session`): every 5-10 minutes for active sessions
+- Auto-refresh scheduler (`app.scripts.auto_refresh_scheduler`): every 2 minutes by default
 - Historical backfill ingest: one-off or nightly until complete

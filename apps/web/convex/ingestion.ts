@@ -6,20 +6,76 @@ function computeCachePolicy(startsAt: number | null) {
   if (!startsAt) {
     return {
       mode: "historical",
-      ttlMs: 1000 * 60 * 60 * 24 * 30,
+      ttlMs: 1000 * 60 * 60 * 24 * 7,
       shouldBypassCache: false
     };
   }
 
-  const liveWindowMs = 1000 * 60 * 60 * 6;
+  const liveWindowMs = 1000 * 60 * 60 * 12;
   const isLiveWindow = Math.abs(now - startsAt) < liveWindowMs;
 
   return {
     mode: isLiveWindow ? "live" : "historical",
-    ttlMs: isLiveWindow ? 1000 * 60 * 5 : 1000 * 60 * 60 * 24 * 30,
-    shouldBypassCache: isLiveWindow
+    ttlMs: isLiveWindow ? 1000 * 60 * 2 : 1000 * 60 * 60 * 24 * 7,
+    shouldBypassCache: false
   };
 }
+
+export const listSessionsNeedingRefresh = query({
+  args: {
+    mode: v.union(v.literal("live"), v.literal("historical")),
+    limit: v.number()
+  },
+  handler: async (ctx, args) => {
+    const sessions = await ctx.db.query("sessions").collect();
+    const events = await ctx.db.query("events").collect();
+    const seasons = await ctx.db.query("seasons").collect();
+    const eventMap = new Map(events.map((event) => [event._id, event]));
+    const seasonMap = new Map(seasons.map((season) => [season._id, season]));
+    const now = Date.now();
+
+    return sessions
+      .filter((session) => (session.queueStatus ?? "idle") === "idle")
+      .map((session) => {
+        const event = eventMap.get(session.eventId) ?? null;
+        const season = event ? seasonMap.get(event.seasonId) ?? null : null;
+        const policy = computeCachePolicy(session.startsAt ?? null);
+        const due = !session.lastFetchedAt || !session.cacheExpiresAt || session.cacheExpiresAt <= now;
+
+        return {
+          year: season?.year ?? null,
+          round: event?.round ?? null,
+          sessionCode: session.sessionCode,
+          sessionName: session.sessionName,
+          startsAt: session.startsAt ?? null,
+          lastFetchedAt: session.lastFetchedAt ?? null,
+          cacheExpiresAt: session.cacheExpiresAt ?? null,
+          mode: policy.mode,
+          due
+        };
+      })
+      .filter((session) => session.mode === args.mode && session.due && session.year !== null && session.round !== null)
+      .sort((a, b) => {
+        const leftDueAt = a.cacheExpiresAt ?? 0;
+        const rightDueAt = b.cacheExpiresAt ?? 0;
+        if (leftDueAt !== rightDueAt) {
+          return leftDueAt - rightDueAt;
+        }
+        return (a.startsAt ?? 0) - (b.startsAt ?? 0);
+      })
+      .slice(0, Math.max(0, args.limit))
+      .map((session) => ({
+        year: session.year as number,
+        round: session.round as number,
+        sessionCode: session.sessionCode,
+        sessionName: session.sessionName,
+        startsAt: session.startsAt,
+        lastFetchedAt: session.lastFetchedAt,
+        cacheExpiresAt: session.cacheExpiresAt,
+        mode: session.mode
+      }));
+  }
+});
 
 export const getSessionRefreshPolicy = query({
   args: {
