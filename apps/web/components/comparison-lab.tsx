@@ -75,6 +75,7 @@ export function ComparisonLab() {
   const hasAutoSelectedDrivers = useRef(false);
   const seasonMenuRef = useRef<HTMLDivElement | null>(null);
   const locationMenuRef = useRef<HTMLDivElement | null>(null);
+  const driverListRef = useRef<HTMLDivElement | null>(null);
   const lastReadySessionsRef = useRef<typeof readySessions>();
 
   const readySessions = useQuery(api.sessions.getReadySessionsForCompare, {
@@ -183,6 +184,12 @@ export function ComparisonLab() {
     hasAutoSelectedDrivers.current = true;
     setSelectedDriverCodes(driverPool.slice(0, Math.min(3, driverPool.length)).map((driver) => driver.driverCode));
   }, [driverPool, selectedDriverCodes.length]);
+
+  useEffect(() => {
+    if (driverListRef.current) {
+      driverListRef.current.scrollTop = 0;
+    }
+  }, [driverPool, selectedSessionIds]);
 
   const comparison = useQuery(
     api.sessions.getMultiSessionComparison,
@@ -326,7 +333,7 @@ export function ComparisonLab() {
   }, [comparison, hiddenSeriesKeys, lineStyles]);
 
   return (
-    <section className="panel" style={{ marginBottom: "1rem" }}>
+    <section className="panel compare-workspace" style={{ marginBottom: "1rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
         <div>
           <h2 style={{ margin: 0 }}>Comparison Lab</h2>
@@ -459,9 +466,9 @@ export function ComparisonLab() {
             </div>
           </div>
 
-          {selectedSessions.length > 0 ? (
-            <div className="compare-selected-strip">
-              {selectedSessions.map((session) => (
+          <div className={`compare-selected-strip ${selectedSessions.length === 0 ? "is-empty" : ""}`}>
+            {selectedSessions.length > 0 ? (
+              selectedSessions.map((session) => (
                 <button
                   key={`selected-${String(session.id)}`}
                   type="button"
@@ -473,9 +480,11 @@ export function ComparisonLab() {
                   </strong>
                   <span>{session.eventName}</span>
                 </button>
-              ))}
-            </div>
-          ) : null}
+              ))
+            ) : (
+              <div className="compare-selected-placeholder mono">No sessions selected yet. Tick one or more rows to build the overlay.</div>
+            )}
+          </div>
 
           <div className="compare-session-table-shell">
             <div className="table-wrap">
@@ -523,16 +532,22 @@ export function ComparisonLab() {
             </div>
           </div>
 
-          {filteredSessions.length > 18 ? (
-            <div className="compare-session-footer">
-              <span className="mono compare-session-meta">
-                {showAllSessions ? `Showing all ${filteredSessions.length} matching sessions` : `Large result set detected - previewing first 18 sessions`}
-              </span>
+          <div className="compare-session-footer">
+            <span className="mono compare-session-meta">
+              {filteredSessions.length > 18
+                ? showAllSessions
+                  ? `Showing all ${filteredSessions.length} matching sessions`
+                  : `Large result set detected - previewing first 18 sessions`
+                : `Showing all ${filteredSessions.length} matching sessions`}
+            </span>
+            {filteredSessions.length > 18 ? (
               <button className="btn" onClick={() => setShowAllSessions((current) => !current)}>
                 {showAllSessions ? "Show fewer" : "Show all"}
               </button>
-            </div>
-          ) : null}
+            ) : (
+              <span className="compare-session-footer-spacer" aria-hidden="true" />
+            )}
+          </div>
         </article>
 
         <article className="panel compare-builder-card">
@@ -555,7 +570,7 @@ export function ComparisonLab() {
             Driver availability updates from the currently selected sessions, so you can compare mixed eras only where data exists.
           </p>
 
-          <div className="compare-chip-list compare-chip-list-compact">
+          <div ref={driverListRef} className="compare-chip-list compare-chip-list-compact">
             {(driverPool ?? []).map((driver) => {
               const selected = selectedDriverCodes.includes(driver.driverCode);
               return (

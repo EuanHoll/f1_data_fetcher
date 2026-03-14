@@ -28,6 +28,7 @@ html,
 body {
   margin: 0;
   padding: 0;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -78,12 +79,13 @@ select:disabled {
 }
 
 .app-main {
-  padding-bottom: 2.5rem;
+  padding: 0 0.75rem 2.5rem;
 }
 
 .container {
   width: min(1380px, calc(100vw - 2rem));
   margin: 0 auto;
+  padding-inline: 0.25rem;
 }
 
 ::-webkit-scrollbar {
@@ -492,6 +494,11 @@ select:disabled {
   gap: 0.9rem;
 }
 
+.compare-builder-grid > *,
+.session-explorer-grid > * {
+  min-width: 0;
+}
+
 .hero-stat-card,
 .feature-card,
 .kpi-card,
@@ -654,6 +661,7 @@ select:disabled {
 .table-container,
 .compare-chart-scroll {
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .table,
@@ -810,8 +818,9 @@ select:disabled {
 }
 
 .compare-chip-list-compact {
-  max-height: 22rem;
+  max-height: 40rem;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .compare-series-chip {
@@ -861,6 +870,12 @@ select:disabled {
   gap: 0.55rem;
   flex-wrap: wrap;
   margin: 0.8rem 0;
+  min-height: 3.5rem;
+  align-items: flex-start;
+}
+
+.compare-selected-strip.is-empty {
+  align-items: center;
 }
 
 .compare-selected-pill {
@@ -879,11 +894,17 @@ select:disabled {
   font-size: 0.78rem;
 }
 
+.compare-selected-placeholder {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
 .compare-session-table-shell {
   border: 1px solid var(--panel-border);
   background: rgba(3, 8, 16, 0.72);
   max-height: 28rem;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .compare-session-table tbody tr.is-selected {
@@ -899,6 +920,30 @@ select:disabled {
 
 .compare-session-table input[type="checkbox"] {
   accent-color: var(--accent);
+}
+
+.compare-builder-card,
+.compare-session-table,
+.compare-chart-shell {
+  width: 100%;
+}
+
+.compare-workspace {
+  padding: 1.1rem;
+}
+
+.compare-builder-card {
+  padding: 1rem;
+}
+
+.compare-session-footer {
+  min-height: 2.75rem;
+}
+
+.compare-session-footer-spacer {
+  display: inline-block;
+  width: 6.5rem;
+  min-height: 1px;
 }
 
 .chart-container {
@@ -1158,6 +1203,15 @@ select:disabled {
 
   .compare-series-race {
     grid-column: 3;
+  }
+
+  .app-main {
+    padding-inline: 0.35rem;
+  }
+
+  .container {
+    width: min(100%, calc(100vw - 0.75rem));
+    padding-inline: 0.15rem;
   }
 }
 
