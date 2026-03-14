@@ -178,7 +178,7 @@ services:
 
   worker-runner:
     image: convex-worker-base:latest
-    command: ["/usr/local/bin/uv", "run", "python", "-m", "app.workers.runner"]
+    command: ["/usr/local/bin/uv", "run", "python", "-m", "app.workers.supervisor"]
     environment:
       - INGEST_API_KEY=${INGEST_API_KEY}
       - WORKER_API_KEY=${WORKER_API_KEY}
@@ -186,6 +186,7 @@ services:
       - FASTF1_CACHE_DIR=/data/fastf1-cache
       - VALKEY_URL=${VALKEY_URL:-redis://valkey:6379/0}
       - RQ_QUEUE_NAME=${RQ_QUEUE_NAME:-ingest}
+      - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-5}
     volumes:
       - worker_fastf1_cache:/data/fastf1-cache
     depends_on:

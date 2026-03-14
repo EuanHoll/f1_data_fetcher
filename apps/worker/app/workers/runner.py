@@ -1,4 +1,5 @@
 import time
+import os
 
 from rq import Worker
 from rq.registry import StartedJobRegistry
@@ -35,7 +36,8 @@ def reconcile_active_jobs(queue):
 
 def main():
     queue = get_queue()
-    reconcile_active_jobs(queue)
+    if os.environ.get("WORKER_CHILD_INDEX", "0") == "0":
+        reconcile_active_jobs(queue)
     worker = Worker([queue], connection=queue.connection)
     worker.work()
 

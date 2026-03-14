@@ -32,13 +32,13 @@ It is intended as the first infrastructure step before building the Next.js fron
 From repo root:
 
 ```bash
-docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d --scale worker-runner=3
+docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d
 ```
 
 To rebuild app images after Dockerfile/dependency changes:
 
 ```bash
-docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d --build --scale worker-runner=3
+docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d --build
 ```
 
 Then run the one-shot catalog bootstrap when needed:
@@ -50,13 +50,13 @@ docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml
 Or use the convenience scripts (same `--dev` / `--prod` pattern as your website repo):
 
 ```bash
-WORKER_CONCURRENCY=3 ./start.sh --dev
-WORKER_CONCURRENCY=3 ./start.sh --prod
+WORKER_CONCURRENCY=5 ./start.sh --dev
+WORKER_CONCURRENCY=5 ./start.sh --prod
 ```
 
 ```powershell
-$env:WORKER_CONCURRENCY=3; .\start.ps1 --dev
-$env:WORKER_CONCURRENCY=3; .\start.ps1 --prod
+$env:WORKER_CONCURRENCY=5; .\start.ps1 --dev
+$env:WORKER_CONCURRENCY=5; .\start.ps1 --prod
 ```
 
 To watch logs:

@@ -24,7 +24,7 @@ The local stack now runs a FastAPI worker control API inside Docker (`worker`) w
 Start the full stack from repo root:
 
 ```bash
-docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d --build --scale worker-runner=3
+docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml up -d --build
 ```
 
 Then use `/ingestion` in the web UI to queue single/batch ingest jobs.
@@ -35,7 +35,7 @@ Then run the one-shot catalog bootstrap:
 docker compose --env-file docker/convex/.env -f docker/convex/docker-compose.yml --profile bootstrap run --rm worker-bootstrap
 ```
 
-You can increase or decrease ingestion concurrency by changing the `worker-runner` scale count.
+The single `worker-runner` container starts multiple RQ worker processes internally. You can increase or decrease ingestion concurrency with `WORKER_CONCURRENCY`.
 
 The worker uses `uv` with dependency metadata in `apps/worker/pyproject.toml` and a committed lockfile at `apps/worker/uv.lock` so installs stay reproducible.
 
