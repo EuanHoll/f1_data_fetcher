@@ -77,6 +77,7 @@ export function ComparisonLab() {
   const locationMenuRef = useRef<HTMLDivElement | null>(null);
   const driverListRef = useRef<HTMLDivElement | null>(null);
   const lastReadySessionsRef = useRef<typeof readySessions>();
+  const lastComparisonRef = useRef<typeof comparison>();
 
   const readySessions = useQuery(api.sessions.getReadySessionsForCompare, {
     limit: 1500,
@@ -202,6 +203,14 @@ export function ComparisonLab() {
       : "skip"
   );
 
+  if (comparison) {
+    lastComparisonRef.current = comparison;
+  }
+
+  const hasActiveComparisonSelection = selectedSessionIds.length > 0 && selectedDriverCodes.length > 0;
+  const resolvedComparison = hasActiveComparisonSelection ? comparison ?? lastComparisonRef.current : undefined;
+  const comparisonIsRefreshing = comparison === undefined && resolvedComparison !== undefined;
+
   const selectedSessions = useMemo(() => {
     const order = new Map(filteredSessions.map((session, index) => [String(session.id), index]));
     return filteredSessions
@@ -221,17 +230,17 @@ export function ComparisonLab() {
   }, [selectedDriverCodes, selectedSessionIds]);
 
   useEffect(() => {
-    const availableKeys = new Set((comparison?.series ?? []).map((series) => series.key));
+    const availableKeys = new Set((resolvedComparison?.series ?? []).map((series) => series.key));
     setHiddenSeriesKeys((current) => current.filter((key) => availableKeys.has(key)));
     setHoveredSeriesKey((current) => (current && availableKeys.has(current) ? current : null));
-  }, [comparison]);
+  }, [resolvedComparison]);
 
   const chartModel = useMemo(() => {
-    if (!comparison || comparison.series.length === 0) {
+    if (!resolvedComparison || resolvedComparison.series.length === 0) {
       return null;
     }
 
-    const allPlottedSeries = comparison.series.map((series) => ({
+    const allPlottedSeries = resolvedComparison.series.map((series) => ({
       ...series,
       plottedPoints: series.points.map((point) => ({
         ...point,
@@ -245,11 +254,11 @@ export function ComparisonLab() {
     const maxMs = Math.max(...allValues);
     const range = Math.max(maxMs - minMs, 1);
 
-    const visibleSeries = comparison.series.filter((series) => !hiddenSeriesKeys.includes(series.key));
+    const visibleSeries = resolvedComparison.series.filter((series) => !hiddenSeriesKeys.includes(series.key));
     if (visibleSeries.length === 0) {
       return {
         empty: true as const,
-        totalSeries: comparison.series.length,
+        totalSeries: resolvedComparison.series.length,
         chartMode
       };
     }
@@ -323,10 +332,10 @@ export function ComparisonLab() {
         };
       })
     };
-  }, [chartMode, comparison, hiddenSeriesKeys, lineStyles, useSessionColors]);
+  }, [chartMode, resolvedComparison, hiddenSeriesKeys, lineStyles, useSessionColors]);
 
   const chartSeriesLegend = useMemo(() => {
-    return (comparison?.series ?? []).map((series) => ({
+    return (resolvedComparison?.series ?? []).map((series) => ({
       key: series.key,
       driverCode: series.driverCode,
       driverName: series.driverName,
@@ -336,7 +345,7 @@ export function ComparisonLab() {
       color: useSessionColors ? lineStyles.bySessionColor.get(series.sessionId) ?? palette[0] : lineStyles.byDriver.get(series.driverCode) ?? palette[0],
       dashArray: lineStyles.bySession.get(series.sessionId) === "none" ? undefined : lineStyles.bySession.get(series.sessionId)
     }));
-  }, [comparison, hiddenSeriesKeys, lineStyles, useSessionColors]);
+  }, [resolvedComparison, hiddenSeriesKeys, lineStyles, useSessionColors]);
 
   return (
     <section className="panel compare-workspace" style={{ marginBottom: "1rem" }}>
@@ -597,24 +606,24 @@ export function ComparisonLab() {
         </article>
       </div>
 
-      {!comparison ? (
+      {!resolvedComparison ? (
         <p style={{ margin: "1rem 0 0", color: "#64758a" }}>Choose at least one session and one driver to load the comparison workspace.</p>
       ) : (
         <>
           <section className="grid-3" style={{ margin: "1rem 0 0.8rem" }}>
             <article className="kpi-card">
               <p className="kpi-label">Selected Sessions</p>
-              <p className="kpi-value">{comparison.sessions.length}</p>
+              <p className="kpi-value">{resolvedComparison.sessions.length}</p>
               <p style={{ margin: "0.25rem 0 0", color: "#65768f" }}>Mix years, but keep track and session type aligned when you want a clean same-circuit study.</p>
             </article>
             <article className="kpi-card">
               <p className="kpi-label">Selected Drivers</p>
-              <p className="kpi-value">{comparison.aggregates.length}</p>
+              <p className="kpi-value">{resolvedComparison.aggregates.length}</p>
               <p style={{ margin: "0.25rem 0 0", color: "#65768f" }}>Every selected driver becomes a color across all chosen sessions.</p>
             </article>
             <article className="kpi-card">
               <p className="kpi-label">Comparable Runs</p>
-              <p className="kpi-value">{comparison.summaries.length}</p>
+              <p className="kpi-value">{resolvedComparison.summaries.length}</p>
               <p style={{ margin: "0.25rem 0 0", color: "#65768f" }}>Driver-session combinations with actual lap data behind them.</p>
             </article>
           </section>
@@ -623,7 +632,10 @@ export function ComparisonLab() {
             <div className="section-heading">
               <div>
                 <h3 style={{ margin: 0 }}>Normalized Pace Overlay</h3>
-                <p>Color identifies driver. Stroke pattern identifies session. Use the visibility controls to focus the chart instead of loading it again.</p>
+                <p>
+                  Color identifies driver. Stroke pattern identifies session. Use the visibility controls to focus the chart instead of loading it again.
+                  {comparisonIsRefreshing ? " Refreshing selection..." : ""}
+                </p>
               </div>
               <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
                 <button className={`btn ${chartMode === "absolute" ? "btn-primary" : ""}`} onClick={() => setChartMode("absolute")}>
@@ -758,7 +770,7 @@ export function ComparisonLab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {comparison.aggregates.map((row) => (
+                    {resolvedComparison.aggregates.map((row) => (
                       <tr key={row.driverCode}>
                         <td>
                           <strong>{displayDriverLabel(row.driverCode, row.driverName)}</strong>
@@ -810,7 +822,7 @@ export function ComparisonLab() {
                 </tr>
               </thead>
               <tbody>
-                {comparison.summaries.map((row) => (
+                {resolvedComparison.summaries.map((row) => (
                   <tr key={row.key}>
                     <td>
                       <strong>{row.sessionLabel}</strong>
