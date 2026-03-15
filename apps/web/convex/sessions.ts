@@ -146,7 +146,8 @@ export const getExplorerData = query({
     seasonYear: v.optional(v.number()),
     sessionCode: v.optional(v.string()),
     status: v.optional(v.union(v.literal("pending"), v.literal("ready"), v.literal("failed"))),
-    order: v.optional(v.union(v.literal("newest"), v.literal("oldest")))
+    order: v.optional(v.union(v.literal("newest"), v.literal("oldest"))),
+    excludeFuture: v.optional(v.boolean())
   },
   handler: async (ctx, args) => {
     const limit = Math.min(args.limit ?? 120, 2000);
@@ -198,7 +199,8 @@ export const getExplorerData = query({
       const seasonOk = args.seasonYear === undefined || row.seasonYear === args.seasonYear;
       const sessionOk = args.sessionCode === undefined || row.sessionCode === args.sessionCode;
       const statusOk = args.status === undefined || row.ingestStatus === args.status;
-      return seasonOk && sessionOk && statusOk;
+      const futureOk = !args.excludeFuture || row.startsAt === null || row.startsAt <= now;
+      return seasonOk && sessionOk && statusOk && futureOk;
     });
 
     filtered.sort((a, b) => {

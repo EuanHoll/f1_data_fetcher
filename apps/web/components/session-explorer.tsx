@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
@@ -37,6 +37,10 @@ function formatLapMs(ms: number | null) {
   return `${minutes}:${seconds.toFixed(3).padStart(6, "0")}`;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export function SessionExplorer() {
   const pageSize = 80;
   const [currentPage, setCurrentPage] = useState(0);
@@ -44,50 +48,42 @@ export function SessionExplorer() {
   const [selectedSessionCode, setSelectedSessionCode] = useState<string>("all");
   const [order, setOrder] = useState<"newest" | "oldest">("newest");
 
-  const data = useQuery(api.sessions.getExplorerData, {
+  const [seasonMenuOpen, setSeasonMenuOpen] = useState(false);
+  const [sessionCodeMenuOpen, setSessionCodeMenuOpen] = useState(false);
+  const [orderMenuOpen, setOrderMenuOpen] = useState(false);
+
+  const seasonMenuRef = useRef<HTMLDivElement | null>(null);
+  const sessionCodeMenuRef = useRef<HTMLDivElement | null>(null);
+  const orderMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onPointerDown(event: MouseEvent) {
+      if (!seasonMenuRef.current?.contains(event.target as Node)) setSeasonMenuOpen(false);
+      if (!sessionCodeMenuRef.current?.contains(event.target as Node)) setSessionCodeMenuOpen(false);
+      if (!orderMenuRef.current?.contains(event.target as Node)) setOrderMenuOpen(false);
+    }
+    if (seasonMenuOpen || sessionCodeMenuOpen || orderMenuOpen) {
+      window.addEventListener("mousedown", onPointerDown);
+    }
+    return () => window.removeEventListener("mousedown", onPointerDown);
+  }, [seasonMenuOpen, sessionCodeMenuOpen, orderMenuOpen]);
+
+  const rawData = useQuery(api.sessions.getExplorerData, {
     limit: pageSize,
     offset: currentPage * pageSize,
     seasonYear: selectedSeason === "all" ? undefined : Number(selectedSeason),
     sessionCode: selectedSessionCode === "all" ? undefined : selectedSessionCode,
-    order
+    order,
+    excludeFuture: true
   });
-  const seedWeekend = useMutation(api.sessions.seedSampleWeekend);
-  const markRefreshed = useMutation(api.ingestion.markSessionRefreshed);
 
-  const [seedMessage, setSeedMessage] = useState<string | null>(null);
-  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+  const [data, setData] = useState(rawData);
+  useEffect(() => {
+    if (rawData !== undefined) {
+      setData(rawData);
+    }
+  }, [rawData]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>("auto");
-
-  async function onSeed() {
-    setSeedMessage("Seeding sample weekend...");
-    const result = await seedWeekend({});
-    setSeedMessage(`Ready. Added ${result.created} new session(s).`);
-  }
-
-  async function onRefreshFirstSession() {
-    if (!data || data.rows.length === 0) {
-      setRefreshMessage("No database session available yet. Seed or ingest first.");
-      return;
-    }
-
-    const firstSession = data.rows[0];
-    if (!firstSession.id) {
-      setRefreshMessage("Session ID is missing.");
-      return;
-    }
-
-    const result = await markRefreshed({
-      sessionId: firstSession.id,
-      source: "web-manual-refresh"
-    });
-
-    if (result.refreshed) {
-      setRefreshMessage(`Session refreshed. Cache valid until ${formatDate(result.cacheExpiresAt)}.`);
-      return;
-    }
-
-    setRefreshMessage("Skipped fetch because cached data is still valid (historical session policy).");
-  }
 
   const baseRows = useMemo(() => {
     if (!data) {
@@ -100,47 +96,120 @@ export function SessionExplorer() {
 
   const rows = useMemo(() => baseRows, [baseRows]);
 
+  useEffect(() => {
+    if (rows.length === 0) {
+      setSelectedSessionId("auto");
+      return;
+    }
+
+    setSelectedSessionId((current) => {
+      if (current === "auto") {
+        return current;
+      }
+      return rows.some((row) => row.id === current) ? current : "auto";
+    });
+  }, [rows]);
+
   const activeSessionId = useMemo(() => {
     if (selectedSessionId !== "auto") {
       return selectedSessionId;
     }
-    const firstWithId = rows.find((row) => row.id !== null);
+    const firstWithId = rows.find((row) => !!row.id);
     return firstWithId?.id ?? null;
   }, [rows, selectedSessionId]);
 
-  const lapStory = useQuery(
+  const rawLapStory = useQuery(
     api.sessions.getSessionLapStory,
     activeSessionId ? { sessionId: activeSessionId as any, limitRows: 20 } : "skip"
   );
+  const isLapStoryLoading = activeSessionId && rawLapStory === undefined;
+  
+  const [lapStory, setLapStory] = useState(rawLapStory);
+  useEffect(() => {
+    setLapStory(undefined);
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    if (rawLapStory !== undefined) {
+      setLapStory(rawLapStory);
+    }
+  }, [rawLapStory, activeSessionId]);
 
   const chartSeries = useMemo(() => lapStory?.series ?? [], [lapStory]);
   const topLapRows = useMemo(() => (lapStory?.topRows ?? []).slice(0, 12), [lapStory]);
-  const chartPoints = useMemo(() => {
+  const chartModel = useMemo(() => {
     if (chartSeries.length === 0) {
-      return [] as Array<{ driverCode: string; polyline: string; color: string }>;
+      return null;
     }
 
-    const allMs = chartSeries.flatMap((series) => series.points.map((point) => point.lapTimeMs));
+    const allPoints = chartSeries.flatMap((series) => series.points);
+    const allMs = allPoints.map((point) => point.lapTimeMs);
+    const allLapNumbers = allPoints.map((point) => point.lapNumber);
     const minMs = Math.min(...allMs);
     const maxMs = Math.max(...allMs);
+    const minLapNumber = Math.min(...allLapNumbers);
+    const maxLapNumber = Math.max(...allLapNumbers);
     const range = Math.max(maxMs - minMs, 1);
+    const lapRange = Math.max(maxLapNumber - minLapNumber, 1);
     const palette = ["#0057ff", "#ff6b00"];
-
-    return chartSeries.map((series, index) => {
-      const polyline = series.points
-        .map((point, pointIndex) => {
-          const x = series.points.length === 1 ? 50 : (pointIndex / (series.points.length - 1)) * 100;
-          const y = 100 - ((point.lapTimeMs - minMs) / range) * 88 - 6;
-          return `${x},${y}`;
-        })
-        .join(" ");
-
+    const chartWidth = 640;
+    const chartHeight = 240;
+    const paddingLeft = 64;
+    const paddingRight = 20;
+    const paddingTop = 18;
+    const paddingBottom = 34;
+    const innerWidth = chartWidth - paddingLeft - paddingRight;
+    const innerHeight = chartHeight - paddingTop - paddingBottom;
+    const yTicks = Array.from({ length: 4 }, (_, index) => {
+      const ratio = index / 3;
+      const value = maxMs - range * ratio;
       return {
-        driverCode: series.driverCode,
-        polyline,
-        color: palette[index] ?? "#334155"
+        value: Math.round(value),
+        y: paddingTop + innerHeight * ratio
       };
     });
+    const xTicks = Array.from({ length: 4 }, (_, index) => {
+      const ratio = index / 3;
+      const lapNumber = Math.round(minLapNumber + lapRange * ratio);
+      return {
+        label: `L${lapNumber}`,
+        x: paddingLeft + innerWidth * ratio
+      };
+    });
+
+    const series = chartSeries.map((entry, index) => {
+      const points = entry.points.map((point) => {
+        const x = paddingLeft + ((point.lapNumber - minLapNumber) / lapRange) * innerWidth;
+        const y = paddingTop + clamp(((maxMs - point.lapTimeMs) / range) * innerHeight, 0, innerHeight);
+        return {
+          x,
+          y,
+          lapNumber: point.lapNumber,
+          lapTimeMs: point.lapTimeMs
+        };
+      });
+
+      return {
+        driverCode: entry.driverCode,
+        color: palette[index] ?? "#334155",
+        points,
+        polyline: points.map((point) => `${point.x},${point.y}`).join(" ")
+      };
+    });
+
+    return {
+      chartWidth,
+      chartHeight,
+      paddingLeft,
+      paddingRight,
+      paddingTop,
+      paddingBottom,
+      innerWidth,
+      innerHeight,
+      yTicks,
+      xTicks,
+      series
+    };
   }, [chartSeries]);
 
   useEffect(() => {
@@ -157,252 +226,210 @@ export function SessionExplorer() {
   }
 
   const seasonsFromFacets = data.facets.seasons;
-  const diagnostics =
-    data.pendingDiagnostics ??
-    {
-      pendingNeverAttempted: 0,
-      pendingInProgressOrRetried: 0,
-      pendingCacheExpired: 0,
-      oldestPendingStartsAt: null,
-      pendingPreview: [] as Array<{
-        id: string;
-        seasonYear: number | null;
-        round: number | null;
-        eventName: string;
-        sessionCode: string;
-        sessionName: string;
-        startsAt: number | null;
-        source: string | null;
-        lastFetchedAt: number | null;
-        cacheExpiresAt: number | null;
-      }>
-    };
-  const pendingHeadline =
-    diagnostics.pendingNeverAttempted > 0
-      ? `${diagnostics.pendingNeverAttempted} pending sessions were cataloged but never sent to lap ingest yet.`
-      : diagnostics.pendingInProgressOrRetried > 0
-        ? `${diagnostics.pendingInProgressOrRetried} pending sessions were touched by ingest and still need finalization.`
-        : "No pending sessions in the current explorer scope.";
 
   return (
-    <section className="panel session-explorer" style={{ marginTop: "1rem" }}>
-      <div className="session-head">
+    <div className="session-explorer" style={{ paddingTop: "0.5rem" }}>
+      <div style={{ marginBottom: "1.5rem" }}>
+        <h2 style={{ margin: 0, fontSize: "2rem", fontWeight: 600 }}>Explore Sessions</h2>
+        <p style={{ margin: "0.4rem 0 0", color: "#6b7e94", fontSize: "1rem" }}>
+          {data.source === "database"
+            ? "Browse the live catalog of F1 sessions and analyze driver lap times."
+            : "No ingested sessions yet. Showing sample rows until ingestion is wired."}
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.2rem", marginTop: "1rem" }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: "1.4rem" }}>Session Explorer</h2>
-          <p style={{ margin: "0.28rem 0 0", color: "#5b6d84", fontSize: "0.93rem" }}>
-            {data.source === "database"
-              ? "Live session catalog from Convex with ingest queue diagnostics."
-              : "No ingested sessions yet. Showing sample rows until ingestion is wired."}
-          </p>
-        </div>
-        <div className="session-head-actions">
-          <span className="pill" style={{ background: data.source === "database" ? "var(--accent-soft)" : "#fff8e7" }}>
-            source: {data.source}
-          </span>
-          <button onClick={() => void onSeed()} className="btn">
-            Seed sample weekend
-          </button>
-          <button onClick={() => void onRefreshFirstSession()} className="btn">
-            Refresh latest session
-          </button>
-        </div>
-      </div>
-      {seedMessage ? <p style={{ marginTop: 0, color: "#59696d" }}>{seedMessage}</p> : null}
-      {refreshMessage ? <p style={{ marginTop: 0, color: "#59696d" }}>{refreshMessage}</p> : null}
-
-      <div className="select-row" style={{ marginBottom: "0.9rem" }}>
-        <select className="select" value={selectedSeason} onChange={(event) => setSelectedSeason(event.target.value)}>
-          <option value="all">All seasons</option>
-          {seasonsFromFacets.map((year) => (
-            <option key={year} value={String(year)}>
-              {year} Season
-            </option>
-          ))}
-        </select>
-
-        <select className="select" value={selectedSessionCode} onChange={(event) => setSelectedSessionCode(event.target.value)}>
-          <option value="all">All sessions</option>
-          {sessionCodeOptions.map((code) => (
-            <option key={code} value={code}>
-              {code}
-            </option>
-          ))}
-        </select>
-
-        <select className="select" value={order} onChange={(event) => setOrder(event.target.value as "newest" | "oldest")}>
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-        </select>
-
-        <select className="select" value={selectedSessionId} onChange={(event) => setSelectedSessionId(event.target.value)}>
-          <option value="auto">Auto (first matching session)</option>
-          {rows
-            .filter((row) => row.id)
-            .map((row) => (
-              <option key={row.id ?? `${row.eventName}-${row.sessionCode}`} value={row.id ?? ""}>
-                {row.seasonYear} R{row.round} {row.sessionCode} - {row.eventName}
-              </option>
-            ))}
-        </select>
-
-        <div className="select mono compare-summary-chip" style={{ display: "grid", alignItems: "center", color: "#5f6e88" }}>
-          visible page set: {rows.length}
-        </div>
-        <div className="select mono compare-summary-chip" style={{ display: "grid", alignItems: "center", color: "#5f6e88" }}>
-          filtered catalog: {data.pagination.total}
-        </div>
-      </div>
-
-      <section className="grid-4" style={{ marginBottom: "1rem" }}>
-        <article className="kpi-card">
-          <p className="kpi-label">Total Sessions</p>
-          <p className="kpi-value">{data.stats.totalSessions}</p>
-          <p style={{ margin: "0.28rem 0 0", color: "#6d7d91", fontSize: "0.84rem" }}>Current filtered result set size.</p>
-        </article>
-        <article className="kpi-card">
-          <p className="kpi-label">Ready to Use</p>
-          <p className="kpi-value" style={{ color: "var(--ok)" }}>
-            {data.stats.readySessions}
-          </p>
-          <p style={{ margin: "0.28rem 0 0", color: "#6d7d91", fontSize: "0.88rem" }}>Already cached locally and queryable.</p>
-        </article>
-        <article className="kpi-card">
-          <p className="kpi-label">Pending</p>
-          <p className="kpi-value" style={{ color: "var(--warn)" }}>
-            {data.stats.pendingSessions}
-          </p>
-          <p style={{ margin: "0.28rem 0 0", color: "#6d7d91", fontSize: "0.84rem" }}>Sessions still waiting on ingest completion.</p>
-        </article>
-        <article className="kpi-card">
-          <p className="kpi-label">Failed</p>
-          <p className="kpi-value" style={{ color: "#9a2f2f" }}>
-            {data.stats.failedSessions}
-          </p>
-          <p style={{ margin: "0.28rem 0 0", color: "#6d7d91", fontSize: "0.84rem" }}>Sessions that ended in failed ingest state.</p>
-        </article>
-      </section>
-
-      <section className="panel" style={{ marginBottom: "1rem", padding: "0.85rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
-          <div>
-            <h3 style={{ margin: 0 }}>Ingest Queue Diagnostics</h3>
-            <p style={{ margin: "0.3rem 0 0", color: "#5c6f86", fontSize: "0.9rem" }}>{pendingHeadline}</p>
+          <label className="data-label">Season</label>
+          <div className="compare-dropdown" ref={seasonMenuRef}>
+            <button type="button" className="select compare-dropdown-trigger" onClick={() => setSeasonMenuOpen((o) => !o)}>
+              <span className="mono">{selectedSeason === "all" ? "All seasons" : `${selectedSeason} Season`}</span>
+              <span className="mono">{seasonMenuOpen ? "-" : "+"}</span>
+            </button>
+            {seasonMenuOpen ? (
+              <div className="compare-dropdown-menu">
+                <button type="button" className={`compare-dropdown-action ${selectedSeason === "all" ? "is-active" : ""}`} onClick={() => { setSelectedSeason("all"); setSeasonMenuOpen(false); }}>All seasons</button>
+                {seasonsFromFacets.map((year) => (
+                  <button key={year} type="button" className={`compare-dropdown-action ${selectedSeason === String(year) ? "is-active" : ""}`} onClick={() => { setSelectedSeason(String(year)); setSeasonMenuOpen(false); }}>{year} Season</button>
+                ))}
+              </div>
+            ) : null}
           </div>
-          <span className="pill mono" style={{ background: "var(--accent-soft)" }}>
-            latest run: {data.stats.ingestRunStatus}
-          </span>
         </div>
 
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
-          <span className="pill mono">never attempted: {diagnostics.pendingNeverAttempted}</span>
-          <span className="pill mono">in progress/retried: {diagnostics.pendingInProgressOrRetried}</span>
-          <span className="pill mono">cache expired: {diagnostics.pendingCacheExpired}</span>
-          <span className="pill mono">oldest pending: {formatDateShort(diagnostics.oldestPendingStartsAt)}</span>
+        <div>
+          <label className="data-label">Session Type</label>
+          <div className="compare-dropdown" ref={sessionCodeMenuRef}>
+            <button type="button" className="select compare-dropdown-trigger" onClick={() => setSessionCodeMenuOpen((o) => !o)}>
+              <span className="mono">{selectedSessionCode === "all" ? "All sessions" : selectedSessionCode}</span>
+              <span className="mono">{sessionCodeMenuOpen ? "-" : "+"}</span>
+            </button>
+            {sessionCodeMenuOpen ? (
+              <div className="compare-dropdown-menu">
+                <button type="button" className={`compare-dropdown-action ${selectedSessionCode === "all" ? "is-active" : ""}`} onClick={() => { setSelectedSessionCode("all"); setSessionCodeMenuOpen(false); }}>All sessions</button>
+                {sessionCodeOptions.map((code) => (
+                  <button key={code} type="button" className={`compare-dropdown-action ${selectedSessionCode === code ? "is-active" : ""}`} onClick={() => { setSelectedSessionCode(code); setSessionCodeMenuOpen(false); }}>{code}</button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
 
-        <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
-          <table className="table table-compact" style={{ minWidth: 680 }}>
-            <thead>
-              <tr>
-                <th>Session</th>
-                <th>Start</th>
-                <th>Last Fetch</th>
-                <th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {diagnostics.pendingPreview.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <strong>{row.seasonYear ?? "-"} R{row.round ?? "-"}</strong> {row.sessionCode} - {row.eventName}
-                  </td>
-                  <td className="mono">{formatDate(row.startsAt)}</td>
-                  <td className="mono">{formatDate(row.lastFetchedAt)}</td>
-                  <td>{row.source ?? "catalog"}</td>
-                </tr>
-              ))}
-              {diagnostics.pendingPreview.length === 0 ? (
-                <tr>
-                  <td colSpan={4} style={{ color: "#6c7d90" }}>
-                    No pending sessions in this filter scope.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+        <div>
+          <label className="data-label">Sort By</label>
+          <div className="compare-dropdown" ref={orderMenuRef}>
+            <button type="button" className="select compare-dropdown-trigger" onClick={() => setOrderMenuOpen((o) => !o)}>
+              <span className="mono">{order === "newest" ? "Newest first" : "Oldest first"}</span>
+              <span className="mono">{orderMenuOpen ? "-" : "+"}</span>
+            </button>
+            {orderMenuOpen ? (
+              <div className="compare-dropdown-menu">
+                <button type="button" className={`compare-dropdown-action ${order === "newest" ? "is-active" : ""}`} onClick={() => { setOrder("newest"); setOrderMenuOpen(false); }}>Newest first</button>
+                <button type="button" className={`compare-dropdown-action ${order === "oldest" ? "is-active" : ""}`} onClick={() => { setOrder("oldest"); setOrderMenuOpen(false); }}>Oldest first</button>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </section>
+      </div>
 
-      <section className="session-explorer-grid" style={{ marginBottom: "1rem" }}>
-        <article className="panel" style={{ padding: "0.85rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", marginBottom: "1rem" }}>
+        <article className="panel" style={{ padding: "1.2rem", minHeight: 380, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.55rem" }}>
             <div>
               <h3 style={{ margin: 0 }}>Lap Time Story</h3>
                 <p style={{ margin: "0.3rem 0 0", color: "#647487", fontSize: "0.92rem" }}>
-                  {lapStory ? "Top two drivers by lap count in selected session." : "No lap series available yet. This usually means the selected session has catalog data but no lap ingest yet."}
+                  {lapStory ? "Top two drivers by lap count in selected session." : "Select a session from the list to explore lap performance."}
                 </p>
             </div>
-            <span className="pill mono" style={{ background: "var(--accent-soft)" }}>
-              query: sessions.getSessionLapStory
-            </span>
           </div>
-          <div className="story-chart">
-            <svg viewBox="0 0 100 100" style={{ width: "100%", height: 210 }} aria-label="Pace chart">
-              <polyline fill="none" stroke="#e7eef9" strokeWidth="0.8" points="0,94 100,94" />
-              {chartPoints.map((series) => (
-                <polyline key={series.driverCode} fill="none" stroke={series.color} strokeWidth="2.2" points={series.polyline} />
-              ))}
-            </svg>
-          </div>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.45rem" }}>
-            {chartPoints.map((series) => (
-              <span key={series.driverCode} className="pill mono">
-                <span style={{ width: 8, height: 8, borderRadius: 999, background: series.color, display: "inline-block" }} />
-                {series.driverCode}
-              </span>
-            ))}
-          </div>
-          <p className="mono" style={{ margin: "0.45rem 0 0", color: "#617286", fontSize: "0.85rem" }}>
-            best: {formatLapMs(lapStory?.bestLapMs ?? null)} | avg: {formatLapMs(lapStory?.avgLapMs ?? null)} | laps: {lapStory?.totalLaps ?? 0}
-          </p>
 
-          <div className="table-wrap" style={{ marginTop: "0.65rem", maxHeight: 290 }}>
-            <table className="table table-compact" style={{ minWidth: 620 }}>
-              <thead>
-                <tr>
-                  <th>Driver</th>
-                  <th>Lap</th>
-                  <th>Lap Time</th>
-                  <th>Compound</th>
-                  <th>Stint</th>
-                  <th>Delta to Best</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topLapRows.map((row, i) => (
-                  <tr key={`${row.driverCode}-${row.lapNumber}-${i}`}>
-                    <td>
-                      <strong>{row.driverCode}</strong>
-                    </td>
-                    <td>{row.lapNumber}</td>
-                    <td className="mono">{formatLapMs(row.lapTimeMs)}</td>
-                    <td>{row.compound ?? "-"}</td>
-                    <td>{row.stint ?? "-"}</td>
-                    <td className="mono" style={{ color: row.deltaToBestMs === 0 ? "var(--ok)" : "var(--warn)" }}>
-                      {row.deltaToBestMs === null ? "-" : `+${(row.deltaToBestMs / 1000).toFixed(3)}s`}
-                    </td>
-                  </tr>
+          {isLapStoryLoading ? (
+            <div style={{ border: "1px dashed var(--panel-border)", background: "rgba(3,8,16,0.3)", padding: "3rem 1rem", textAlign: "center", marginTop: "1rem" }}>
+              <p style={{ color: "var(--accent)", margin: 0, fontWeight: 500 }}>Fetching lap data...</p>
+            </div>
+          ) : !activeSessionId ? (
+            <div style={{ border: "1px dashed var(--panel-border)", background: "rgba(3,8,16,0.3)", padding: "3rem 1rem", textAlign: "center", marginTop: "1rem" }}>
+              <p style={{ color: "var(--text-secondary)", margin: 0 }}>Select a session from the queue to load driver paces.</p>
+            </div>
+          ) : !lapStory || !chartModel || chartModel.series.length === 0 ? (
+            <div style={{ border: "1px dashed var(--panel-border)", background: "rgba(3,8,16,0.3)", padding: "3rem 1rem", textAlign: "center", marginTop: "1rem" }}>
+              <p style={{ color: "var(--text-secondary)", margin: 0 }}>The selected session currently has no lap data ingested.</p>
+            </div>
+          ) : (
+            <>
+              <div className="story-chart">
+                <svg
+                  viewBox={`0 0 ${chartModel.chartWidth} ${chartModel.chartHeight}`}
+                  style={{ width: "100%", height: 240 }}
+                  aria-label="Pace chart"
+                >
+                  <rect x="0" y="0" width={chartModel.chartWidth} height={chartModel.chartHeight} fill="rgba(5, 13, 27, 0.95)" rx="10" />
+                  {chartModel.yTicks.map((tick) => (
+                    <g key={`y-${tick.y}`}>
+                      <line
+                        x1={chartModel.paddingLeft}
+                        y1={tick.y}
+                        x2={chartModel.chartWidth - chartModel.paddingRight}
+                        y2={tick.y}
+                        stroke="rgba(137, 161, 192, 0.18)"
+                        strokeWidth="1"
+                      />
+                      <text x={chartModel.paddingLeft - 10} y={tick.y + 4} textAnchor="end" fill="#7f93ad" fontSize="11">
+                        {formatLapMs(tick.value)}
+                      </text>
+                    </g>
+                  ))}
+                  {chartModel.xTicks.map((tick) => (
+                    <g key={`x-${tick.x}`}>
+                      <line
+                        x1={tick.x}
+                        y1={chartModel.paddingTop}
+                        x2={tick.x}
+                        y2={chartModel.chartHeight - chartModel.paddingBottom}
+                        stroke="rgba(137, 161, 192, 0.12)"
+                        strokeWidth="1"
+                      />
+                      <text x={tick.x} y={chartModel.chartHeight - 10} textAnchor="middle" fill="#7f93ad" fontSize="11">
+                        {tick.label}
+                      </text>
+                    </g>
+                  ))}
+                  {chartModel.series.map((series) => (
+                    <g key={series.driverCode}>
+                      <polyline
+                        fill="none"
+                        stroke={series.color}
+                        strokeWidth="3"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                        points={series.polyline}
+                      />
+                      {series.points.map((point, index) => (
+                        <circle
+                          key={`${series.driverCode}-${point.lapNumber}-${index}`}
+                          cx={point.x}
+                          cy={point.y}
+                          r="3.5"
+                          fill={series.color}
+                          stroke="rgba(5, 13, 27, 0.95)"
+                          strokeWidth="1.5"
+                        />
+                      ))}
+                    </g>
+                  ))}
+                </svg>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.45rem" }}>
+                {chartModel.series.map((series) => (
+                  <span key={series.driverCode} className="pill mono">
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: series.color, display: "inline-block" }} />
+                    {series.driverCode}
+                  </span>
                 ))}
-                {lapStory && topLapRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ color: "#6c7d90" }}>
-                      No lap rows available for this session yet. The session exists in the catalog, but lap-level data has not been ingested into the comparison store.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+              </div>
+              <p className="mono" style={{ margin: "0.45rem 0 0", color: "#617286", fontSize: "0.85rem" }}>
+                best: {formatLapMs(lapStory?.bestLapMs ?? null)} | avg: {formatLapMs(lapStory?.avgLapMs ?? null)} | laps: {lapStory?.totalLaps ?? 0}
+              </p>
+
+              <div className="table-wrap" style={{ marginTop: "0.65rem", maxHeight: 290 }}>
+                <table className="table table-compact" style={{ minWidth: 620 }}>
+                  <thead>
+                    <tr>
+                      <th>Driver</th>
+                      <th>Lap</th>
+                      <th>Lap Time</th>
+                      <th>Compound</th>
+                      <th>Stint</th>
+                      <th>Delta to Best</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topLapRows.map((row, i) => (
+                      <tr key={`${row.driverCode}-${row.lapNumber}-${i}`}>
+                        <td>
+                          <strong>{row.driverCode}</strong>
+                        </td>
+                        <td>{row.lapNumber}</td>
+                        <td className="mono">{formatLapMs(row.lapTimeMs)}</td>
+                        <td>{row.compound ?? "-"}</td>
+                        <td>{row.stint ?? "-"}</td>
+                        <td className="mono" style={{ color: row.deltaToBestMs === 0 ? "var(--ok)" : "var(--warn)" }}>
+                          {row.deltaToBestMs === null ? "-" : `+${(row.deltaToBestMs / 1000).toFixed(3)}s`}
+                        </td>
+                      </tr>
+                    ))}
+                    {lapStory && topLapRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ color: "#6c7d90" }}>
+                          No lap rows available for this session yet. The session exists in the catalog, but lap-level data has not been ingested.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </article>
 
         <article className="panel" style={{ padding: "0.85rem" }}>
@@ -426,7 +453,17 @@ export function SessionExplorer() {
               </thead>
               <tbody>
                 {rows.map((row, i) => (
-                  <tr key={row.id ?? `${row.eventName}-${row.sessionCode}-${i}`}>
+                  <tr 
+                    key={row.id ?? `${row.eventName}-${row.sessionCode}-${i}`}
+                    onClick={() => { if (row.id) setSelectedSessionId(row.id); }}
+                    style={{ 
+                      cursor: row.id ? "pointer" : "default",
+                      background: activeSessionId === row.id ? "rgba(74, 150, 255, 0.12)" : "",
+                      boxShadow: activeSessionId === row.id ? "inset 3px 0 0 var(--accent)" : "",
+                      opacity: rawData === undefined ? 0.6 : 1,
+                      transition: "opacity 0.2s ease"
+                    }}
+                  >
                     <td>{row.seasonYear ?? "-"}</td>
                     <td>{row.round ?? "-"}</td>
                     <td>
@@ -448,7 +485,7 @@ export function SessionExplorer() {
             </table>
           </div>
         </article>
-      </section>
+      </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.8rem", gap: "0.6rem", flexWrap: "wrap" }}>
         <span className="mono" style={{ color: "#5f7189", fontSize: "0.88rem" }}>
@@ -463,6 +500,6 @@ export function SessionExplorer() {
           </button>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

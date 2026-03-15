@@ -211,11 +211,13 @@ export function ComparisonLab() {
 
   const selectedSessionCount = selectedSessionIds.length;
   const selectedDriverCount = selectedDriverCodes.length;
+  const useSessionColors = selectedDriverCodes.length === 1;
 
   const lineStyles = useMemo(() => {
     const byDriver = new Map(selectedDriverCodes.map((driverCode, index) => [driverCode, palette[index % palette.length]]));
     const bySession = new Map(selectedSessionIds.map((sessionId, index) => [sessionId, dashPatterns[index % dashPatterns.length]]));
-    return { byDriver, bySession };
+    const bySessionColor = new Map(selectedSessionIds.map((sessionId, index) => [sessionId, palette[index % palette.length]]));
+    return { byDriver, bySession, bySessionColor };
   }, [selectedDriverCodes, selectedSessionIds]);
 
   useEffect(() => {
@@ -303,13 +305,17 @@ export function ComparisonLab() {
           return { x, y, lapTimeMs: point.lapTimeMs, plottedValue: point.plottedValue, lapNumber: point.lapNumber };
         });
 
+        const strokeColor = useSessionColors
+          ? lineStyles.bySessionColor.get(series.sessionId) ?? palette[0]
+          : lineStyles.byDriver.get(series.driverCode) ?? palette[0];
+
         return {
           key: series.key,
           sessionId: series.sessionId,
           driverCode: series.driverCode,
           points,
           polyline: points.map((point) => `${point.x},${point.y}`).join(" "),
-          color: lineStyles.byDriver.get(series.driverCode) ?? palette[0],
+          color: strokeColor,
           dashArray: lineStyles.bySession.get(series.sessionId) === "none" ? undefined : lineStyles.bySession.get(series.sessionId),
           label: `${displayDriverLabel(series.driverCode, series.driverName)} - ${series.sessionLabel}`,
           endPoint: points[points.length - 1],
@@ -317,7 +323,7 @@ export function ComparisonLab() {
         };
       })
     };
-  }, [chartMode, comparison, hiddenSeriesKeys, lineStyles]);
+  }, [chartMode, comparison, hiddenSeriesKeys, lineStyles, useSessionColors]);
 
   const chartSeriesLegend = useMemo(() => {
     return (comparison?.series ?? []).map((series) => ({
@@ -327,10 +333,10 @@ export function ComparisonLab() {
       sessionLabel: series.sessionLabel,
       sessionId: series.sessionId,
       hidden: hiddenSeriesKeys.includes(series.key),
-      color: lineStyles.byDriver.get(series.driverCode) ?? palette[0],
+      color: useSessionColors ? lineStyles.bySessionColor.get(series.sessionId) ?? palette[0] : lineStyles.byDriver.get(series.driverCode) ?? palette[0],
       dashArray: lineStyles.bySession.get(series.sessionId) === "none" ? undefined : lineStyles.bySession.get(series.sessionId)
     }));
-  }, [comparison, hiddenSeriesKeys, lineStyles]);
+  }, [comparison, hiddenSeriesKeys, lineStyles, useSessionColors]);
 
   return (
     <section className="panel compare-workspace" style={{ marginBottom: "1rem" }}>
