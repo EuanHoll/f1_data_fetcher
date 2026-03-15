@@ -3,6 +3,7 @@ import Link from "next/link";
 type ModuleNavProps = {
   activeModule: "home" | "explore" | "compare" | "saved" | "admin";
   isAdmin: boolean;
+  isAuthenticated: boolean;
 };
 
 const modules = [
@@ -12,10 +13,12 @@ const modules = [
   { key: "saved", href: "/saved", label: "Module 04: Saved" }
 ] as const;
 
-export function ModuleNav({ activeModule, isAdmin }: ModuleNavProps) {
+export function ModuleNav({ activeModule, isAdmin, isAuthenticated }: ModuleNavProps) {
+  const visibleModules = modules.filter((module) => (module.key === "saved" ? isAuthenticated : true));
+
   return (
     <div className="nav-modules">
-      {modules.map((module) => (
+      {visibleModules.map((module) => (
         <Link key={module.key} href={module.href} className={`nav-module ${activeModule === module.key ? "active" : ""}`}>
           {module.label}
         </Link>

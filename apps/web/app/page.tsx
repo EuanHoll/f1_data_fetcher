@@ -1,11 +1,6 @@
 import Link from "next/link";
+import { auth } from "@/auth";
 import { AppShell } from "@/components/app-shell";
-
-const productStats = [
-  { label: "Module 02", value: "Explore" },
-  { label: "Module 03", value: "Compare" },
-  { label: "Module 04", value: "Workspace" }
-];
 
 const productPillars = [
   {
@@ -23,6 +18,14 @@ const productPillars = [
 ];
 
 export default async function HomePage() {
+  const session = await auth();
+  const isAuthenticated = Boolean(session?.user);
+  const productStats = [
+    { label: "Module 02", value: "Explore" },
+    { label: "Module 03", value: "Compare" },
+    ...(isAuthenticated ? [{ label: "Module 04", value: "Workspace" }] : [])
+  ];
+
   return (
     <AppShell activeModule="home">
       <div className="container page-stack">
@@ -93,13 +96,15 @@ export default async function HomePage() {
                 <Link href="/compare" className="btn btn-primary">Open Compare</Link>
               </div>
             </article>
-            <article className="feature-card">
-              <h3>Workspace Archive</h3>
-              <p>Reserve space for saved views now, then layer in persistence once the route and shell are stable.</p>
-              <div className="hero-actions">
-                <Link href="/saved" className="btn btn-primary">Open Workspace</Link>
-              </div>
-            </article>
+            {isAuthenticated ? (
+              <article className="feature-card">
+                <h3>Workspace Archive</h3>
+                <p>Reserve space for saved views now, then layer in persistence once the route and shell are stable.</p>
+                <div className="hero-actions">
+                  <Link href="/saved" className="btn btn-primary">Open Workspace</Link>
+                </div>
+              </article>
+            ) : null}
           </div>
         </section>
 

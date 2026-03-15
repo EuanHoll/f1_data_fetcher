@@ -12,6 +12,7 @@ type AppShellProps = {
 
 export async function AppShell({ activeModule, children }: AppShellProps) {
   const session = await auth();
+  const isAuthenticated = Boolean(session?.user);
   const isAdmin = isViewerAdmin({
     id: session?.user?.id,
     email: session?.user?.email
@@ -26,7 +27,7 @@ export async function AppShell({ activeModule, children }: AppShellProps) {
           <span className={`logo-text ${isAdminView ? "text-danger" : ""}`}>PACE LAB</span>
           <span className={`logo-beta ${isAdminView ? "bg-danger" : ""}`}>{isAdminView ? "SYS.ADMIN" : "BETA"}</span>
         </div>
-        <ModuleNav activeModule={activeModule} isAdmin={isAdmin} />
+        <ModuleNav activeModule={activeModule} isAdmin={isAdmin} isAuthenticated={isAuthenticated} />
         <AccountNav isAdminView={isAdminView} />
       </nav>
       <main className="app-main">{children}</main>
