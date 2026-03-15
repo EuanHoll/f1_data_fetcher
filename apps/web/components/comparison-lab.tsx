@@ -261,7 +261,7 @@ export function ComparisonLab() {
         plottedValue: chartMode === "delta" && series.sessionBestLapMs !== null ? point.lapTimeMs - series.sessionBestLapMs : point.lapTimeMs
       }))
     }));
-    const chartWidth = Math.max(960, maxPointsPerSeries * 78);
+    const chartWidth = Math.max(720, Math.min(1440, 360 + maxPointsPerSeries * 14));
     const chartHeight = 520;
     const paddingLeft = 92;
     const paddingRight = 30;
