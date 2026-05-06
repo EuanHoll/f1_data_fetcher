@@ -94,7 +94,13 @@ async function enqueueSessions(
 
   if (queued.length > 0) {
     await client.mutation(api.workerJobs.recordQueuedJobs, {
-      jobs: queued.map(({ session, ...job }) => job)
+      jobs: queued.map((job) => ({
+        jobId: job.jobId,
+        createdAt: job.createdAt,
+        total: job.total,
+        queuePosition: job.queuePosition,
+        requestedSessionsJson: job.requestedSessionsJson
+      }))
     });
     await client.mutation(api.sessions.markQueuedSessions, {
       items: queued.map((item) => ({

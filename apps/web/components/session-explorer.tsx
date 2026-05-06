@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 function formatDate(value: number | null) {
@@ -9,13 +9,6 @@ function formatDate(value: number | null) {
     return "TBD";
   }
   return new Date(value).toLocaleString();
-}
-
-function formatDateShort(value: number | null) {
-  if (!value) {
-    return "-";
-  }
-  return new Date(value).toLocaleDateString();
 }
 
 function statusColor(status: string) {
