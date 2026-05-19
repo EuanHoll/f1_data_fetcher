@@ -510,6 +510,11 @@ select:disabled {
   padding: 0.95rem;
 }
 
+.compare-session-card {
+  display: grid;
+  gap: 0.25rem;
+}
+
 .hero-stat-card p,
 .feature-card h3,
 .section-heading h2,
