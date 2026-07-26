@@ -12,10 +12,12 @@
     "web:convex:dev": "npm run convex:dev --workspace @f1/pace-lab-web"
   },
   "overrides": {
-    "ws": "^8.20.1",
-    "postcss": "^8.5.15",
+    "@babel/core": "7.29.6",
+    "js-yaml": "4.3.0",
+    "sharp": "0.35.3",
+    "ws": "8.21.1",
+    "postcss": "8.5.18",
     "picomatch": "^4.0.4",
-    "flatted": "^3.4.2",
-    "brace-expansion": "^5.0.6"
+    "flatted": "^3.4.2"
   }
 }
