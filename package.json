@@ -15,7 +15,7 @@
     "@babel/core": "7.29.6",
     "js-yaml": "4.3.2",
     "minimatch": "10.2.5",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "ws": "8.21.1",
     "postcss": "8.5.23",
     "picomatch": "^4.0.4",
