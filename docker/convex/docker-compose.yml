@@ -1,6 +1,11 @@
 services:
   backend:
-    image: ghcr.io/get-convex/convex-backend:${CONVEX_VERSION:-latest}
+    image: convex-backend-ca:${CONVEX_VERSION:-latest}
+    build:
+      context: ../..
+      dockerfile: docker/convex/Dockerfile.ca
+      args:
+        BASE_IMAGE: ghcr.io/get-convex/convex-backend:${CONVEX_VERSION:-latest}
     stop_grace_period: 10s
     stop_signal: SIGINT
     ports:
@@ -41,7 +46,12 @@ services:
 
   dashboard:
     profiles: ["tools"]
-    image: ghcr.io/get-convex/convex-dashboard:${CONVEX_VERSION:-latest}
+    image: convex-dashboard-ca:${CONVEX_VERSION:-latest}
+    build:
+      context: ../..
+      dockerfile: docker/convex/Dockerfile.ca
+      args:
+        BASE_IMAGE: ghcr.io/get-convex/convex-dashboard:${CONVEX_VERSION:-latest}
     stop_grace_period: 10s
     stop_signal: SIGINT
     ports:
