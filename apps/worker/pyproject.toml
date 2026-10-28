@@ -16,3 +16,4 @@ dependencies = [
 
 [tool.uv]
 package = false
+constraint-dependencies = ["pillow>=13.0.0"]
